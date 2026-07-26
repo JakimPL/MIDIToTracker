@@ -10,7 +10,7 @@ dependencies = [
     "numpy>=2.1",
     "pydantic>=2.13.4",
     "pyyaml>=6.0",
-    "audiotokenizer",
+    "trackmod",
 ]
 
 [project.scripts]
@@ -31,7 +31,7 @@ dev = [
 ]
 
 [tool.uv.sources]
-audiotokenizer = { path = "../AudioTokenizer", editable = true }
+trackmod = { path = "trackmod", editable = true }
 
 [build-system]
 requires = ["hatchling"]
@@ -43,11 +43,14 @@ packages = ["src/midi2tracker"]
 [tool.black]
 line-length = 120
 target-version = ["py313"]
+extend-exclude = "^/trackmod/"
 
 [tool.isort]
 profile = "black"
 line_length = 120
 known_first_party = ["midi2tracker"]
+known_third_party = ["trackmod"]
+skip_glob = ["trackmod/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

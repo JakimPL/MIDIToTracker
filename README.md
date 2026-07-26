@@ -2,6 +2,19 @@
 
 Convert a MIDI file into a FastTracker 2 tracker module.
 
+## Getting started
+
+The file format lives in [`trackmod`](https://github.com/JakimPL/TrackMod), taken here as a git submodule
+so a checkout pins the exact revision this project was built against. Fetch it before anything else — an
+empty `trackmod/` leaves the project uninstallable:
+
+```
+git submodule update --init
+uv sync
+```
+
+A fresh clone can do both in one step with `git clone --recurse-submodules`.
+
 ```
 uv run midi2tracker song.mid
 ```
@@ -43,9 +56,10 @@ uv run midi2tracker song.mid out.xm --rows-per-beat 8 --channels 16 --verbose
 
 ## How it is put together
 
-Everything about the *file format* lives in [`trackmod`](../AudioTokenizer/docs/trackmod/overview.md),
-which holds one format-agnostic song model and writes it as `.xm`. What is here is the MIDI side and the
-translation between them.
+Everything about the *file format* lives in
+[`trackmod`](https://github.com/JakimPL/TrackMod/blob/main/docs/overview.md), which holds one
+format-agnostic song model and writes it as `.xm`. What is here is the MIDI side and the translation
+between them.
 
 | Package | Owns |
 |---|---|
