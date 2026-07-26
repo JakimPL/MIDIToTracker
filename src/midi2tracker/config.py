@@ -1,20 +1,12 @@
-"""The knobs one conversion runs under, validated once at the boundary and threaded down.
-
-Every bound here is the format's own rather than a preference: the channel count, the pattern height and
-the instrument slot are what a canonical FastTracker 2 module carries, and the speed ceiling is what a
-note delay can name, since a row divided finer than that has positions no cell can express.
-
-``speed`` is the one field with a sentinel: zero asks for the finest speed the piece's fastest tempo
-allows, which is what most files want and what the ceiling above is chosen for.
-"""
-
-from __future__ import annotations
-
 from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
-from trackmod.xm.spec.ranges import CANONICAL_MAX_CHANNELS, CANONICAL_MAX_INSTRUMENTS, MAX_ROWS
+from trackmod.xm.spec.ranges import (
+    CANONICAL_MAX_CHANNELS,
+    CANONICAL_MAX_INSTRUMENTS,
+    MAX_ROWS,
+)
 
 from midi2tracker.timing.speed import MAX_SPEED
 

@@ -1,16 +1,3 @@
-"""Command-line entry point: convert a MIDI file into a FastTracker 2 module.
-
-``midi2tracker song.mid`` writes ``song.xm`` beside it, resolving the sustain pedal, spreading the notes over
-as many channels as the polyphony needs, and carrying the tempo changes through as effects. The knobs
-that shape the result — the row rate, the channel ceiling, the pattern height, the speed and the
-instrument slot — come from a configuration file and can each be overridden on the command line.
-
-The configuration is read before the parser is built, so a ``--config`` file's values become the defaults
-the flags override rather than being loaded afterwards and overwritten by them.
-"""
-
-from __future__ import annotations
-
 import argparse
 from collections.abc import Sequence
 from pathlib import Path
@@ -39,28 +26,71 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
         description="Convert a MIDI file into a FastTracker 2 module",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("input", type=Path, help="input .mid file")
     parser.add_argument(
-        "output", type=Path, nargs="?", default=None, help="output .xm file (default: the input's name)"
+        "input",
+        type=Path,
+        help="input .mid file",
     )
-    parser.add_argument("--config", type=Path, default=None, help="a YAML configuration file")
     parser.add_argument(
-        "--channels", type=int, default=defaults.channels, help="how many channels the polyphony may reach"
+        "output",
+        type=Path,
+        nargs="?",
+        default=None,
+        help="output .xm file (default: the input's name)",
     )
-    parser.add_argument("--rows-per-beat", type=int, default=defaults.rows_per_beat, help="rows one quarter note spans")
-    parser.add_argument("--pattern-rows", type=int, default=defaults.pattern_rows, help="how tall one pattern may be")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="a YAML configuration file",
+    )
+    parser.add_argument(
+        "--channels",
+        type=int,
+        default=defaults.channels,
+        help="how many channels the polyphony may reach",
+    )
+    parser.add_argument(
+        "--rows-per-beat",
+        type=int,
+        default=defaults.rows_per_beat,
+        help="rows one quarter note spans",
+    )
+    parser.add_argument(
+        "--pattern-rows",
+        type=int,
+        default=defaults.pattern_rows,
+        help="how tall one pattern may be",
+    )
     parser.add_argument(
         "--speed",
         type=int,
         default=defaults.speed,
         help=f"ticks per row; {AUTOMATIC_SPEED} chooses the finest the piece's tempo allows",
     )
-    parser.add_argument("--tempo", type=float, default=defaults.tempo, help="opening tempo in BPM, overriding the file")
     parser.add_argument(
-        "--instrument", type=int, default=defaults.instrument, help="the instrument slot every note plays through"
+        "--tempo",
+        type=float,
+        default=defaults.tempo,
+        help="opening tempo in BPM, overriding the file",
     )
-    parser.add_argument("--version", action="version", version=f"midi2tracker {__version__}")
-    parser.add_argument("-v", "--verbose", action="store_true", help="print what the conversion decided")
+    parser.add_argument(
+        "--instrument",
+        type=int,
+        default=defaults.instrument,
+        help="the instrument slot every note plays through",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"midi2tracker {__version__}",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="print what the conversion decided",
+    )
     return parser
 
 
@@ -97,14 +127,14 @@ def _describe(converted: Converted, path: Path) -> str:
         f"  patterns      {len(conversion.song.patterns)}  ({conversion.rows} rows)",
         f"  channels      {conversion.song.channels}",
         f"  notes         {len(converted.midi.notes)}",
-        f"  speed         {converted.grid.speed} ticks/row" f"  ({converted.grid.rows_per_beat} rows/beat)",
-        f"  tempo         {tempos[0].beats_per_minute:.1f} BPM{changes}"
-        f"  ->  tracker tempo {conversion.song.playback.tempo}",
+        f"  speed         {converted.grid.speed} ticks/row  ({converted.grid.rows_per_beat} rows/beat)",
+        f"  tempo         {tempos[0].beats_per_minute:.1f} BPM{changes} ->  tracker tempo {conversion.song.playback.tempo}",
     ]
     if conversion.stolen_notes:
         lines.append(f"  note          {conversion.stolen_notes} note(s) displaced another; raise --channels")
     if conversion.dropped_tempos:
         lines.append(f"  note          {len(conversion.dropped_tempos)} tempo change(s) found no free effect column")
+
     return "\n".join(lines)
 
 

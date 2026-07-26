@@ -1,11 +1,3 @@
-"""One MIDI file to one tracker module, end to end.
-
-This is the seam the command line and any other caller share: give it a path and a configuration, and it
-parses, chooses the clock, allocates the voices, builds the song and binds it to the format. Everything it
-had to give up along the way travels with the result rather than being printed from inside, so a caller
-decides how to report it.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -58,7 +50,12 @@ def row_grid(midi: MidiSong, config: Config) -> RowGrid:
     return RowGrid(pulses_per_beat=midi.pulses_per_beat, rows_per_beat=config.rows_per_beat, speed=speed)
 
 
-def convert(path: Path | str, config: Config, *, compliance: Compliance = Compliance.CANONICAL) -> Converted:
+def convert(
+    path: Path | str,
+    config: Config,
+    *,
+    compliance: Compliance = Compliance.CANONICAL,
+) -> Converted:
     """Convert the MIDI file at ``path`` into a module under ``config``."""
     parsed = parse_midi(path)
     midi = parsed if config.tempo is None else parsed.starting_at(config.tempo)
@@ -66,5 +63,16 @@ def convert(path: Path | str, config: Config, *, compliance: Compliance = Compli
     allocation = allocate(midi, grid, channels=config.channels)
     layout = Layout(height=config.pattern_rows, slot=config.slot, name=Path(path).stem)
     conversion = build_song(midi, allocation, grid, layout)
-    module = XMModule.from_song(conversion.song, compliance=compliance, settings=XMSettings(tracker=TRACKER_NAME))
-    return Converted(module=module, midi=midi, grid=grid, conversion=conversion)
+    module = XMModule.from_song(
+        conversion.song,
+        compliance=compliance,
+        settings=XMSettings(
+            tracker=TRACKER_NAME,
+        ),
+    )
+    return Converted(
+        module=module,
+        midi=midi,
+        grid=grid,
+        conversion=conversion,
+    )

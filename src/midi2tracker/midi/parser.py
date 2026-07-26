@@ -1,20 +1,14 @@
-"""Reading a MIDI file down to the notes and tempos a tracker module is built from.
-
-Every track is merged into one stream of absolute ticks, because a tracker has no notion of tracks — it
-has channels, and which channel a note lands on is decided later by how many voices are sounding at once.
-Sorting the merged stream by tick is what makes the pedal state machine correct: it sees the events in the
-order a player would have produced them.
-"""
-
-from __future__ import annotations
-
 from pathlib import Path
 
 import mido
 
 from midi2tracker.midi.events import MidiSong, NoteEvent, TempoEvent
 from midi2tracker.midi.sustain import SustainedVoices
-from midi2tracker.spec import DEFAULT_MICROSECONDS_PER_BEAT, PEDAL_DOWN, SUSTAIN_CONTROLLER
+from midi2tracker.spec import (
+    DEFAULT_MICROSECONDS_PER_BEAT,
+    PEDAL_DOWN,
+    SUSTAIN_CONTROLLER,
+)
 
 
 def _merged(midi: mido.MidiFile) -> list[tuple[int, mido.Message]]:
@@ -38,7 +32,11 @@ def _is_release(message: mido.Message) -> bool:
 SOUNDING = frozenset({"note_on", "note_off", "control_change"})
 
 
-def _last_played(events: list[tuple[int, mido.Message]], *, default: int) -> int:
+def _last_played(
+    events: list[tuple[int, mido.Message]],
+    *,
+    default: int,
+) -> int:
     """The tick the music stops on: the last event a player would have acted on.
 
     Meta events are passed over because a file may mark its end long after the last note, and a voice
@@ -47,16 +45,23 @@ def _last_played(events: list[tuple[int, mido.Message]], *, default: int) -> int
     return max((tick for tick, message in events if str(message.type) in SOUNDING), default=default)
 
 
-def _tempos(events: list[tuple[int, mido.Message]]) -> tuple[TempoEvent, ...]:
+def _tempos(
+    events: list[tuple[int, mido.Message]],
+) -> tuple[TempoEvent, ...]:
     """Every tempo the file states, opening at the MIDI default so a piece always has one.
 
     Where several land on the same tick the last one wins, which is what a player reading the merged
     stream in order would end up playing.
     """
-    stated = {0: TempoEvent(tick=0, microseconds_per_beat=DEFAULT_MICROSECONDS_PER_BEAT)}
+    stated = {
+        0: TempoEvent(tick=0, microseconds_per_beat=DEFAULT_MICROSECONDS_PER_BEAT),
+    }
     for tick, message in events:
         if message.type == "set_tempo":
-            stated[tick] = TempoEvent(tick=tick, microseconds_per_beat=message.tempo)
+            stated[tick] = TempoEvent(
+                tick=tick,
+                microseconds_per_beat=message.tempo,
+            )
 
     return tuple(stated[tick] for tick in sorted(stated))
 
@@ -77,4 +82,8 @@ def parse_midi(path: Path | str) -> MidiSong:
 
     end = _last_played(events, default=midi.ticks_per_beat)
     notes: list[NoteEvent] = voices.finish(tick=end, minimum=midi.ticks_per_beat)
-    return MidiSong(pulses_per_beat=midi.ticks_per_beat, notes=tuple(notes), tempos=_tempos(events))
+    return MidiSong(
+        pulses_per_beat=midi.ticks_per_beat,
+        notes=tuple(notes),
+        tempos=_tempos(events),
+    )

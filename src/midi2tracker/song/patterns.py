@@ -1,16 +1,3 @@
-"""Writing the allocated voices onto the pattern grids a tracker reads.
-
-The grid is one continuous run of rows cut into patterns of a fixed height, so a row's address is a
-pattern and an offset within it. Three passes fill it, in an order that decides what wins where they meet:
-notes first, then the key-offs that end them, then the tempo changes.
-
-Key-offs give way to notes because a row that both releases one voice and starts another on the same
-channel can only say one thing, and the note is what the listener hears — the released voice ends when the
-new one takes the channel anyway. Tempo changes belong to the row rather than to a voice, so they go into
-whichever channel still has a free effect column; a row where every channel already carries an effect has
-nowhere to put one, which is reported rather than passed over.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -46,7 +33,10 @@ class Grids:
         """Enough patterns of ``height`` rows to hold ``rows`` rows, the last one holding the remainder."""
         total = max(rows, 1)
         heights = [min(height, total - start) for start in range(0, total, height)]
-        return cls(builders=tuple(PatternBuilder(rows=each, channels=channels) for each in heights), height=height)
+        return cls(
+            builders=tuple(PatternBuilder(rows=each, channels=channels) for each in heights),
+            height=height,
+        )
 
     def address(self, row: int) -> tuple[PatternBuilder, int] | None:
         """The builder and offset a row falls on, or nothing when it lies past the end of the song."""
@@ -102,7 +92,11 @@ def _note_cell(voice: Voice, *, instrument: int) -> Cell:
 
 def _place_notes(grids: Grids, allocation: Allocation, *, instrument: int) -> None:
     for voice in allocation.voices:
-        grids.place(voice.start.row, voice.channel, _note_cell(voice, instrument=instrument))
+        grids.place(
+            voice.start.row,
+            voice.channel,
+            _note_cell(voice, instrument=instrument),
+        )
 
 
 def _place_releases(grids: Grids, allocation: Allocation) -> None:
@@ -115,7 +109,11 @@ def _place_releases(grids: Grids, allocation: Allocation) -> None:
             grids.place(voice.release_row, voice.channel, Cell(note=NoteCommand.OFF))
 
 
-def _place_tempos(grids: Grids, tempos: Sequence[TempoEvent], grid: RowGrid) -> list[TempoEvent]:
+def _place_tempos(
+    grids: Grids,
+    tempos: Sequence[TempoEvent],
+    grid: RowGrid,
+) -> list[TempoEvent]:
     """Write every tempo change past the opening one, returning those with nowhere to go."""
     dropped: list[TempoEvent] = []
     for tempo in tempos[1:]:
@@ -126,7 +124,11 @@ def _place_tempos(grids: Grids, tempos: Sequence[TempoEvent], grid: RowGrid) -> 
             continue
 
         effect = XM_EFFECTS.set_tempo(
-            playable_tempo(tempo.beats_per_minute, speed=grid.speed, rows_per_beat=grid.rows_per_beat)
+            playable_tempo(
+                tempo.beats_per_minute,
+                speed=grid.speed,
+                rows_per_beat=grid.rows_per_beat,
+            )
         )
         occupant = grids.read(row, channel)
         assert occupant is not None  # the row was addressable a moment ago

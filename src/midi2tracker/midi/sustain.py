@@ -1,13 +1,3 @@
-"""The sustain pedal's effect on when a note actually stops sounding.
-
-A pianist releasing a key with the pedal down leaves the note ringing, so the release the file records is
-not the release the music has. This is the state machine that resolves the two: a key held by the pedal
-keeps sounding until the pedal lifts, and pressing that key again cuts the ringing one first — which is
-what a real instrument does, and what keeps one voice from being started twice.
-"""
-
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 
 from midi2tracker.midi.events import NoteEvent
@@ -71,4 +61,11 @@ class SustainedVoices:
             return
 
         tick_on, velocity = started
-        self.closed.append(NoteEvent(tick_on=tick_on, tick_off=max(tick, tick_on), pitch=pitch, velocity=velocity))
+        self.closed.append(
+            NoteEvent(
+                tick_on=tick_on,
+                tick_off=max(tick, tick_on),
+                pitch=pitch,
+                velocity=velocity,
+            )
+        )

@@ -1,7 +1,3 @@
-"""Where one event sits on the row grid: which row, and how far into it."""
-
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict, Field
 
 

@@ -1,13 +1,3 @@
-"""Placing a MIDI tick on the row grid a tracker plays.
-
-A tracker's time resolution is the row, and a row is far coarser than a MIDI tick. What recovers the
-difference is the note-delay effect, which starts a cell some whole number of ticks into its row: the row
-carries the coarse position and the delay the remainder. The grid therefore returns both, and the finest
-position it can express is one tracker tick, or ``pulses_per_beat / rows_per_beat / speed`` MIDI ticks.
-"""
-
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict, Field
 
 from midi2tracker.timing.placement import Placement

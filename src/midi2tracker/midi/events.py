@@ -1,10 +1,3 @@
-"""What a parsed MIDI file leaves behind: the notes it plays and the tempos it plays them at.
-
-Both are stated in absolute ticks rather than the deltas the file stores, because everything downstream
-places events on a row grid and needs to know where each one falls in the piece rather than how far it is
-from the last one.
-"""
-
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -53,7 +46,10 @@ class TempoEvent(BaseModel):
     @classmethod
     def at_beats_per_minute(cls, tick: int, beats_per_minute: float) -> TempoEvent:
         """The tempo event a musical beats-per-minute figure names."""
-        return cls(tick=tick, microseconds_per_beat=round(MICROSECONDS_PER_MINUTE / beats_per_minute))
+        return cls(
+            tick=tick,
+            microseconds_per_beat=round(MICROSECONDS_PER_MINUTE / beats_per_minute),
+        )
 
 
 class MidiSong(BaseModel):

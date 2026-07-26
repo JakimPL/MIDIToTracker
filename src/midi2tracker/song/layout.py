@@ -1,12 +1,3 @@
-"""The choices a caller makes about how a converted piece is laid out.
-
-None of these change what the music is: they decide how it is arranged on the grid — how tall the patterns
-are cut, which instrument slot the notes name, and what the module is called. They travel together because
-they are decided together, at the boundary, from one configuration.
-"""
-
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict, Field
 
 from midi2tracker.spec import MODULE_NAME

@@ -1,16 +1,3 @@
-"""Spreading overlapping notes across the channels a tracker plays them on.
-
-A tracker channel sounds one voice at a time, so polyphony is channel count. Notes are laid out greedily
-in the order they start: the first channel free by then takes the note, which keeps a melodic line on one
-channel and leaves the pattern easy to read.
-
-When every channel is busy the note still has to sound, so the channel whose voice started longest ago is
-taken — the one whose note is nearest its end and least likely to be missed. That is a real loss, so it is
-counted and reported rather than passed over.
-"""
-
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 
 from midi2tracker.midi.events import MidiSong, NoteEvent
@@ -64,7 +51,10 @@ class _Allocator:
             return free
 
         self.stolen += 1
-        return min(range(len(self.channels)), key=lambda index: self.channels[index].began)
+        return min(
+            range(len(self.channels)),
+            key=lambda index: self.channels[index].began,
+        )
 
 
 def allocate(song: MidiSong, grid: RowGrid, *, channels: int) -> Allocation:
@@ -82,4 +72,9 @@ def _placed(note: NoteEvent, grid: RowGrid, allocator: _Allocator) -> Voice:
     release_row = grid.row_of(note.tick_off)
     channel = allocator.choose(start.row)
     allocator.channels[channel].take(began=start.row, ends=release_row)
-    return Voice(note=note, channel=channel, start=start, release_row=release_row)
+    return Voice(
+        note=note,
+        channel=channel,
+        start=start,
+        release_row=release_row,
+    )

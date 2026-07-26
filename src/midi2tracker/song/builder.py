@@ -1,15 +1,3 @@
-"""Assembling one parsed MIDI file into the song a tracker module is written from.
-
-This is where the conversion's choices meet: the row rate and speed fix the grid, the channel count fixes
-the polyphony, and the instrument slot fixes which of the module's instruments the notes name. What comes
-out is a format-agnostic song, so binding it to a file format is a separate, later step.
-
-The song runs a beat past its last release, so the final note has room to ring rather than being cut off
-by the module looping back to the start.
-"""
-
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 from trackmod.core.instruments.instrument import Instrument
@@ -27,7 +15,7 @@ from midi2tracker.timing.grid import RowGrid
 from midi2tracker.timing.tempo import playable_tempo
 from midi2tracker.voices.allocation import Allocation
 
-TRAILING_BEATS = 1  # how long the song plays on past its last release, so the final note rings
+TRAILING_BEATS = 1
 
 
 @dataclass(frozen=True)
@@ -63,7 +51,12 @@ def _channels_used(allocation: Allocation) -> int:
     return allocation.channels + allocation.channels % 2
 
 
-def build_song(midi: MidiSong, allocation: Allocation, grid: RowGrid, layout: Layout) -> Conversion:
+def build_song(
+    midi: MidiSong,
+    allocation: Allocation,
+    grid: RowGrid,
+    layout: Layout,
+) -> Conversion:
     """The song a MIDI file becomes: its voices on channels, its tempo changes as effects."""
     rows = grid.row_of(midi.last_tick) + grid.rows_per_beat * TRAILING_BEATS + 1
     channels = _channels_used(allocation)
@@ -78,7 +71,15 @@ def build_song(midi: MidiSong, allocation: Allocation, grid: RowGrid, layout: La
         samples=(placeholder_sample(),),
         playback=Playback(
             speed=grid.speed,
-            tempo=playable_tempo(midi.tempos[0].beats_per_minute, speed=grid.speed, rows_per_beat=grid.rows_per_beat),
+            tempo=playable_tempo(
+                midi.tempos[0].beats_per_minute,
+                speed=grid.speed,
+                rows_per_beat=grid.rows_per_beat,
+            ),
         ),
     )
-    return Conversion(song=song, stolen_notes=allocation.stolen, dropped_tempos=written.dropped_tempos)
+    return Conversion(
+        song=song,
+        stolen_notes=allocation.stolen,
+        dropped_tempos=written.dropped_tempos,
+    )

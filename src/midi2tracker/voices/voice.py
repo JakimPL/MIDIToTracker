@@ -1,7 +1,3 @@
-"""One note, once it knows which tracker channel plays it and where on the grid it lands."""
-
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict, Field
 
 from midi2tracker.midi.events import NoteEvent
