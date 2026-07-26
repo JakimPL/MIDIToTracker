@@ -5,8 +5,8 @@ from pathlib import Path
 import mido
 import pytest
 
-from midi2xm.midi.parser import parse_midi
-from midi2xm.spec import DEFAULT_MICROSECONDS_PER_BEAT
+from midi2tracker.midi.parser import parse_midi
+from midi2tracker.spec import DEFAULT_MICROSECONDS_PER_BEAT
 from tests.conftest import PULSES, lift, pedal, press, write_midi
 
 

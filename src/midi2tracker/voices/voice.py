@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from midi2xm.midi.events import NoteEvent
-from midi2xm.timing.placement import Placement
+from midi2tracker.midi.events import NoteEvent
+from midi2tracker.timing.placement import Placement
 
 
 class Voice(BaseModel):

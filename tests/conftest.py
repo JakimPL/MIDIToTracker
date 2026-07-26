@@ -5,9 +5,9 @@ from pathlib import Path
 import mido
 import pytest
 
-from midi2xm.midi.events import MidiSong, NoteEvent, TempoEvent
-from midi2xm.spec import DEFAULT_MICROSECONDS_PER_BEAT, SUSTAIN_CONTROLLER
-from midi2xm.timing.grid import RowGrid
+from midi2tracker.midi.events import MidiSong, NoteEvent, TempoEvent
+from midi2tracker.spec import DEFAULT_MICROSECONDS_PER_BEAT, SUSTAIN_CONTROLLER
+from midi2tracker.timing.grid import RowGrid
 
 DATA = Path(__file__).parent / "data"
 PULSES = 96

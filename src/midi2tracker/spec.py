@@ -22,6 +22,6 @@ TICKS_PER_BEAT: Final = 24
 MAX_PITCH: Final = 127
 MAX_VELOCITY: Final = 127
 
-MODULE_NAME: Final = "MIDI2XM"
-TRACKER_NAME: Final = "midi2xm"
+MODULE_NAME: Final = "midi2tracker"
+TRACKER_NAME: Final = "midi2tracker"
 INSTRUMENT_NAME: Final = "Placeholder"

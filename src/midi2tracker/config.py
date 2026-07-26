@@ -16,7 +16,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field
 from trackmod.xm.spec.ranges import CANONICAL_MAX_CHANNELS, CANONICAL_MAX_INSTRUMENTS, MAX_ROWS
 
-from midi2xm.timing.speed import MAX_SPEED
+from midi2tracker.timing.speed import MAX_SPEED
 
 CONFIG_NAME = "config.yaml"
 AUTOMATIC_SPEED = 0

@@ -14,7 +14,7 @@ from trackmod.core.notes.pitch import Note
 from trackmod.spec.levels import MAX_VOLUME
 from trackmod.xm.spec.ranges import MAX_NOTE
 
-from midi2xm.spec import MAX_VELOCITY
+from midi2tracker.spec import MAX_VELOCITY
 
 
 def tracker_note(pitch: int) -> Note:

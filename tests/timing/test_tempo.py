@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from trackmod.xm.spec.effects import TEMPO_PARAMETER
 
-from midi2xm.spec import TICKS_PER_BEAT
-from midi2xm.timing.tempo import playable_tempo, tracker_tempo
+from midi2tracker.spec import TICKS_PER_BEAT
+from midi2tracker.timing.tempo import playable_tempo, tracker_tempo
 
 
 def test_the_reference_clock_is_the_identity() -> None:

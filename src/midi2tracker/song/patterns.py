@@ -22,12 +22,12 @@ from trackmod.core.patterns.cell import Cell
 from trackmod.core.patterns.grid import Pattern
 from trackmod.xm.effects.catalog import XM_EFFECTS
 
-from midi2xm.midi.events import TempoEvent
-from midi2xm.song.mapping import tracker_note, tracker_volume
-from midi2xm.timing.grid import RowGrid
-from midi2xm.timing.tempo import playable_tempo
-from midi2xm.voices.allocation import Allocation
-from midi2xm.voices.voice import Voice
+from midi2tracker.midi.events import TempoEvent
+from midi2tracker.song.mapping import tracker_note, tracker_volume
+from midi2tracker.timing.grid import RowGrid
+from midi2tracker.timing.tempo import playable_tempo
+from midi2tracker.voices.allocation import Allocation
+from midi2tracker.voices.voice import Voice
 
 
 @dataclass(frozen=True)

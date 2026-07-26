@@ -9,11 +9,11 @@ from trackmod.spec.grid import EMPTY
 from trackmod.xm.module import XMModule
 from trackmod.xm.spec.ranges import MAX_PATTERNS, MAX_ROWS
 
-from midi2xm.config import Config
-from midi2xm.convert import convert, row_grid
-from midi2xm.midi.parser import parse_midi
-from midi2xm.song.mapping import tracker_note
-from midi2xm.timing.speed import MAX_SPEED
+from midi2tracker.config import Config
+from midi2tracker.convert import convert, row_grid
+from midi2tracker.midi.parser import parse_midi
+from midi2tracker.song.mapping import tracker_note
+from midi2tracker.timing.speed import MAX_SPEED
 from tests.conftest import lift, pedal, press, write_midi
 
 

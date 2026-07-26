@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from trackmod.xm.spec.effects import NIBBLE_PARAMETER
 
-from midi2xm.timing.grid import RowGrid
+from midi2tracker.timing.grid import RowGrid
 
 
 def test_a_beat_spans_the_rows_it_was_asked_to(grid: RowGrid) -> None:

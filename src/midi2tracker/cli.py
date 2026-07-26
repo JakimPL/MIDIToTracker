@@ -1,6 +1,6 @@
 """Command-line entry point: convert a MIDI file into a FastTracker 2 module.
 
-``midi2xm song.mid`` writes ``song.xm`` beside it, resolving the sustain pedal, spreading the notes over
+``midi2tracker song.mid`` writes ``song.xm`` beside it, resolving the sustain pedal, spreading the notes over
 as many channels as the polyphony needs, and carrying the tempo changes through as effects. The knobs
 that shape the result — the row rate, the channel ceiling, the pattern height, the speed and the
 instrument slot — come from a configuration file and can each be overridden on the command line.
@@ -18,9 +18,9 @@ from pathlib import Path
 from pydantic import ValidationError
 from trackmod.xm.spec.identity import EXTENSION
 
-from midi2xm import __version__
-from midi2xm.config import AUTOMATIC_SPEED, Config, load
-from midi2xm.convert import Converted, convert
+from midi2tracker import __version__
+from midi2tracker.config import AUTOMATIC_SPEED, Config, load
+from midi2tracker.convert import Converted, convert
 
 
 def _config_argument(argv: Sequence[str] | None) -> Path | None:
@@ -35,7 +35,7 @@ def _config_argument(argv: Sequence[str] | None) -> Path | None:
 def build_parser(defaults: Config) -> argparse.ArgumentParser:
     """The command line, with every knob defaulting to what the configuration states."""
     parser = argparse.ArgumentParser(
-        prog="midi2xm",
+        prog="midi2tracker",
         description="Convert a MIDI file into a FastTracker 2 module",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -59,7 +59,7 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
     parser.add_argument(
         "--instrument", type=int, default=defaults.instrument, help="the instrument slot every note plays through"
     )
-    parser.add_argument("--version", action="version", version=f"midi2xm {__version__}")
+    parser.add_argument("--version", action="version", version=f"midi2tracker {__version__}")
     parser.add_argument("-v", "--verbose", action="store_true", help="print what the conversion decided")
     return parser
 

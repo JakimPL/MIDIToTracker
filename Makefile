@@ -5,7 +5,7 @@ test:
 .PHONY: lint
 lint:
 	uv run mypy
-	uv run pylint midi2xm
+	uv run pylint midi2tracker
 
 .PHONY: format
 format:

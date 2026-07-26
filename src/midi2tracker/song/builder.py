@@ -18,14 +18,14 @@ from trackmod.core.songs.order import OrderList
 from trackmod.core.songs.playback import Playback
 from trackmod.core.songs.song import Song
 
-from midi2xm.midi.events import MidiSong, TempoEvent
-from midi2xm.song.height import pattern_height
-from midi2xm.song.instrument import placeholder_instrument, placeholder_sample
-from midi2xm.song.layout import Layout
-from midi2xm.song.patterns import Grids, build_patterns
-from midi2xm.timing.grid import RowGrid
-from midi2xm.timing.tempo import playable_tempo
-from midi2xm.voices.allocation import Allocation
+from midi2tracker.midi.events import MidiSong, TempoEvent
+from midi2tracker.song.height import pattern_height
+from midi2tracker.song.instrument import placeholder_instrument, placeholder_sample
+from midi2tracker.song.layout import Layout
+from midi2tracker.song.patterns import Grids, build_patterns
+from midi2tracker.timing.grid import RowGrid
+from midi2tracker.timing.tempo import playable_tempo
+from midi2tracker.voices.allocation import Allocation
 
 TRAILING_BEATS = 1  # how long the song plays on past its last release, so the final note rings
 

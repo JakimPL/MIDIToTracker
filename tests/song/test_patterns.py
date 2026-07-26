@@ -5,11 +5,11 @@ from trackmod.core.patterns.cell import Cell
 from trackmod.xm.effects.catalog import XM_EFFECTS
 from trackmod.xm.effects.command import XMEffect
 
-from midi2xm.midi.events import MidiSong, TempoEvent
-from midi2xm.song.mapping import tracker_note, tracker_volume
-from midi2xm.song.patterns import Grid, Grids, build_patterns
-from midi2xm.timing.grid import RowGrid
-from midi2xm.voices.allocation import allocate
+from midi2tracker.midi.events import MidiSong, TempoEvent
+from midi2tracker.song.mapping import tracker_note, tracker_volume
+from midi2tracker.song.patterns import Grid, Grids, build_patterns
+from midi2tracker.timing.grid import RowGrid
+from midi2tracker.voices.allocation import allocate
 from tests.conftest import midi_song, note
 
 DEFAULT_TEMPO = TempoEvent(tick=0, microseconds_per_beat=500_000)

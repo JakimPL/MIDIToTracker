@@ -12,9 +12,9 @@ from pathlib import Path
 
 import mido
 
-from midi2xm.midi.events import MidiSong, NoteEvent, TempoEvent
-from midi2xm.midi.sustain import SustainedVoices
-from midi2xm.spec import DEFAULT_MICROSECONDS_PER_BEAT, PEDAL_DOWN, SUSTAIN_CONTROLLER
+from midi2tracker.midi.events import MidiSong, NoteEvent, TempoEvent
+from midi2tracker.midi.sustain import SustainedVoices
+from midi2tracker.spec import DEFAULT_MICROSECONDS_PER_BEAT, PEDAL_DOWN, SUSTAIN_CONTROLLER
 
 
 def _merged(midi: mido.MidiFile) -> list[tuple[int, mido.Message]]:

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from trackmod.xm.spec.effects import NIBBLE_PARAMETER, SPEED_PARAMETER, TEMPO_PARAMETER
 
-from midi2xm.timing.tempo import tracker_tempo
+from midi2tracker.timing.tempo import tracker_tempo
 
 #: The most ticks a row can hold and still have every position inside it nameable by a note delay.
 ADDRESSABLE_SPEED = NIBBLE_PARAMETER.maximum + 1

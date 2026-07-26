@@ -3,7 +3,7 @@ from __future__ import annotations
 from trackmod.spec.levels import MAX_VOLUME
 from trackmod.spec.pitch import NOTE_COUNT
 
-from midi2xm.song.instrument import held_envelope, placeholder_instrument, placeholder_sample
+from midi2tracker.song.instrument import held_envelope, placeholder_instrument, placeholder_sample
 
 
 def test_the_envelope_holds_at_full_volume_while_the_key_is_down() -> None:

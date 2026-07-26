@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from trackmod.xm.spec.ranges import MAX_PATTERNS, MAX_ROWS
 
-from midi2xm.song.height import pattern_height
+from midi2tracker.song.height import pattern_height
 
 
 @pytest.mark.parametrize("rows", [0, 1, 64, 1000, 30720])

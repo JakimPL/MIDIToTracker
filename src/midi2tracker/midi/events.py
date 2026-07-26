@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from midi2xm.spec import MAX_PITCH, MAX_VELOCITY, MICROSECONDS_PER_MINUTE
+from midi2tracker.spec import MAX_PITCH, MAX_VELOCITY, MICROSECONDS_PER_MINUTE
 
 FROZEN = ConfigDict(frozen=True, extra="forbid")
 

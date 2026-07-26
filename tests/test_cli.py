@@ -6,8 +6,8 @@ import pytest
 from trackmod.xm.module import XMModule
 from trackmod.xm.spec.identity import MAGIC
 
-from midi2xm.cli import build_config, build_parser, main
-from midi2xm.config import Config, load
+from midi2tracker.cli import build_parser, main
+from midi2tracker.config import Config, load
 
 
 def test_the_output_defaults_to_the_input_with_the_format_suffix(piece: Path, tmp_path: Path) -> None:

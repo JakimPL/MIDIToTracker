@@ -21,7 +21,7 @@ from trackmod.core.instruments.keymap import pitched_keymap
 from trackmod.core.samples.sample import Sample
 from trackmod.spec.levels import MAX_VOLUME
 
-from midi2xm.spec import INSTRUMENT_NAME
+from midi2tracker.spec import INSTRUMENT_NAME
 
 DEFAULT_RATE = 44100
 RELEASE_TICKS = 16  # how long the voice takes to fall silent once the key is released

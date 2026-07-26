@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from trackmod.xm.spec.effects import NIBBLE_PARAMETER, TEMPO_PARAMETER
 
-from midi2xm.timing.speed import MAX_SPEED, MIN_SPEED, select_speed
-from midi2xm.timing.tempo import tracker_tempo
+from midi2tracker.timing.speed import MAX_SPEED, MIN_SPEED, select_speed
+from midi2tracker.timing.tempo import tracker_tempo
 
 
 def test_the_ceiling_is_what_a_note_delay_can_name() -> None:

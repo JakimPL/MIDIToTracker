@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from midi2xm.midi.sustain import SustainedVoices
+from midi2tracker.midi.sustain import SustainedVoices
 
 
 def played(voices: SustainedVoices, *, tick: int, minimum: int = 0) -> list[tuple[int, int, int]]:

@@ -13,9 +13,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from midi2xm.midi.events import MidiSong, NoteEvent
-from midi2xm.timing.grid import RowGrid
-from midi2xm.voices.voice import Voice
+from midi2tracker.midi.events import MidiSong, NoteEvent
+from midi2tracker.timing.grid import RowGrid
+from midi2tracker.voices.voice import Voice
 
 
 @dataclass(frozen=True)

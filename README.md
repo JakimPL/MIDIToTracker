@@ -1,9 +1,9 @@
-# midi2xm
+# midi2tracker
 
 Convert a MIDI file into a FastTracker 2 tracker module.
 
 ```
-uv run midi2xm song.mid
+uv run midi2tracker song.mid
 ```
 
 writes `song.xm` beside it: the sustain pedal resolved, the notes spread over as many channels as the
@@ -38,7 +38,7 @@ Every knob has a flag and a `config.yaml` entry; the file supplies the defaults 
 | `instrument` | which instrument slot the notes play through |
 
 ```
-uv run midi2xm song.mid out.xm --rows-per-beat 8 --channels 16 --verbose
+uv run midi2tracker song.mid out.xm --rows-per-beat 8 --channels 16 --verbose
 ```
 
 ## How it is put together
@@ -49,12 +49,12 @@ translation between them.
 
 | Package | Owns |
 |---|---|
-| `midi2xm/midi` | reading a file down to notes and tempos, with the sustain pedal resolved |
-| `midi2xm/timing` | the tick-to-row grid, the speed choice, and the tempo conversion |
-| `midi2xm/voices` | spreading overlapping notes across channels |
-| `midi2xm/song` | writing those voices onto pattern grids and assembling the song |
-| `midi2xm/convert.py` | one file to one module, end to end |
-| `midi2xm/cli.py` | the command line |
+| `midi2tracker/midi` | reading a file down to notes and tempos, with the sustain pedal resolved |
+| `midi2tracker/timing` | the tick-to-row grid, the speed choice, and the tempo conversion |
+| `midi2tracker/voices` | spreading overlapping notes across channels |
+| `midi2tracker/song` | writing those voices onto pattern grids and assembling the song |
+| `midi2tracker/convert.py` | one file to one module, end to end |
+| `midi2tracker/cli.py` | the command line |
 
 Two ceilings shape most of the decisions, and both come from the format rather than from taste: a tempo
 effect's parameter is one byte, and a note delay is one nibble — so a row divided into more than sixteen

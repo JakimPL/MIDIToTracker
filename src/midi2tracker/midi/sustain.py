@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from midi2xm.midi.events import NoteEvent
+from midi2tracker.midi.events import NoteEvent
 
 
 @dataclass

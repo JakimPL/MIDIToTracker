@@ -1,6 +1,6 @@
-rows_per_beat: 15      # how many rows a quarter note is spread over
+rows_per_beat: 16      # how many rows a quarter note is spread over
 channels: 32           # the polyphony ceiling
-pattern_rows: 120      # how tall one pattern may be
+pattern_rows: 64       # how tall one pattern may be
 speed: 0               # ticks per row; 0 chooses the finest the piece's tempo allows
 tempo: null            # opening BPM override; null reads it from the file
 instrument: 1          # the instrument slot every note plays through

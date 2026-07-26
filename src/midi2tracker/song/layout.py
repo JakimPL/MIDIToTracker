@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from midi2xm.spec import MODULE_NAME
+from midi2tracker.spec import MODULE_NAME
 
 
 class Layout(BaseModel):

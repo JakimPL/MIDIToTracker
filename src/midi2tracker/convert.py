@@ -16,15 +16,15 @@ from trackmod.limits.violation import Violation
 from trackmod.xm.module import XMModule
 from trackmod.xm.settings import XMSettings
 
-from midi2xm.config import Config
-from midi2xm.midi.events import MidiSong
-from midi2xm.midi.parser import parse_midi
-from midi2xm.song.builder import Conversion, build_song
-from midi2xm.song.layout import Layout
-from midi2xm.spec import TRACKER_NAME
-from midi2xm.timing.grid import RowGrid
-from midi2xm.timing.speed import select_speed
-from midi2xm.voices.allocation import allocate
+from midi2tracker.config import Config
+from midi2tracker.midi.events import MidiSong
+from midi2tracker.midi.parser import parse_midi
+from midi2tracker.song.builder import Conversion, build_song
+from midi2tracker.song.layout import Layout
+from midi2tracker.spec import TRACKER_NAME
+from midi2tracker.timing.grid import RowGrid
+from midi2tracker.timing.speed import select_speed
+from midi2tracker.voices.allocation import allocate
 
 
 @dataclass(frozen=True)

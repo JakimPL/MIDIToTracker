@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from midi2xm.timing.grid import RowGrid
-from midi2xm.voices.allocation import allocate
+from midi2tracker.timing.grid import RowGrid
+from midi2tracker.voices.allocation import allocate
 from tests.conftest import midi_song, note
 
 

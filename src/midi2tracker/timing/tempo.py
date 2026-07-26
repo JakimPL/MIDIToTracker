@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from trackmod.xm.spec.effects import TEMPO_PARAMETER
 
-from midi2xm.spec import TICKS_PER_BEAT
+from midi2tracker.spec import TICKS_PER_BEAT
 
 
 def tracker_tempo(beats_per_minute: float, *, speed: int, rows_per_beat: int) -> int:
