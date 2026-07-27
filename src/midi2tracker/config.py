@@ -28,6 +28,10 @@ class Config(BaseModel):
     The counts answer to the format rather than to a fixed table, because the two formats bound them
     differently — Impulse Tracker plays 64 channels of 200-row patterns where FastTracker 2 plays 32 of
     256 — so each one is graded once the format is known.
+
+    What the notes play through is named once: a ``bank`` manifest for several instruments, or an
+    ``instrument_file`` for one, with ``instrument`` giving the slot they start on. Naming neither writes
+    the reserved slot a tracker fills in by hand.
     """
 
     model_config = ConfigDict(frozen=True, extra="ignore")
@@ -40,6 +44,19 @@ class Config(BaseModel):
     speed: int = Field(default=AUTOMATIC_SPEED, ge=AUTOMATIC_SPEED)
     tempo: float | None = Field(default=None, gt=0)
     instrument: int = Field(default=DEFAULT_INSTRUMENT, ge=1)
+    bank: Path | None = None
+    instrument_file: Path | None = None
+    velocity_map: Path | None = None
+
+    @model_validator(mode="after")
+    def _names_one_source_of_instruments(self) -> Config:
+        if self.bank is not None and self.instrument_file is not None:
+            raise ValueError("bank and instrument_file each name what the notes play through, so state one")
+
+        if self.velocity_map is not None and self.instrument_file is None:
+            raise ValueError("velocity_map reads an instrument_file, so state which file it belongs to")
+
+        return self
 
     @model_validator(mode="after")
     def _within_the_format(self) -> Config:
@@ -64,7 +81,7 @@ class Config(BaseModel):
 
     @property
     def slot(self) -> int:
-        """The instrument's index in the song, counted from zero as the model counts them."""
+        """Where the bank's instruments start in the song, counted from zero as the model counts them."""
         return self.instrument - 1
 
     @property

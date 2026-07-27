@@ -3,7 +3,13 @@ from __future__ import annotations
 from trackmod.spec.levels import MAX_VOLUME
 from trackmod.spec.pitch import NOTE_COUNT
 
-from midi2tracker.song.instrument import held_envelope, placeholder_instrument, placeholder_sample
+from midi2tracker.instruments.placeholder import (
+    held_envelope,
+    placeholder_instrument,
+    placeholder_sample,
+    placeholder_unit,
+    reserved_unit,
+)
 
 
 def test_the_envelope_holds_at_full_volume_while_the_key_is_down() -> None:
@@ -37,3 +43,15 @@ def test_every_key_of_the_instrument_plays_the_reserved_sample_at_its_own_pitch(
 
 def test_the_instrument_carries_the_holding_envelope() -> None:
     assert placeholder_instrument().volume_envelope == held_envelope()
+
+
+def test_the_placeholder_carries_its_own_sample_the_way_a_read_instrument_does() -> None:
+    unit = placeholder_unit()
+    assert unit.instrument.samples == (0,)
+    assert len(unit.samples) == 1
+
+
+def test_a_reserved_slot_routes_no_key_anywhere() -> None:
+    unit = reserved_unit()
+    assert unit.samples == ()
+    assert all(assignment is None for assignment in unit.instrument.keymap)

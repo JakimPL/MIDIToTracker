@@ -9,12 +9,10 @@ from trackmod.core.patterns.cell import Cell
 from trackmod.core.patterns.grid import Pattern
 
 from midi2tracker.midi.events import TempoEvent
-from midi2tracker.song.mapping import tracker_volume
+from midi2tracker.song.sounding import Sounded, Sounding
 from midi2tracker.timing.grid import RowGrid
 from midi2tracker.timing.tempo import playable_tempo
 from midi2tracker.tracker.target import TrackerTarget
-from midi2tracker.voices.allocation import Allocation
-from midi2tracker.voices.voice import Voice
 
 
 @dataclass(frozen=True)
@@ -86,28 +84,31 @@ class Grids:
         return tuple(builder.build() for builder in self.builders)
 
 
-def _note_cell(voice: Voice, *, instrument: int, target: TrackerTarget) -> Cell:
+def _note_cell(sounded: Sounded, *, target: TrackerTarget) -> Cell:
     """The cell that starts a voice, carrying a note delay when it begins partway into its row."""
+    voice = sounded.voice
     effect = target.effects.note_delay(voice.start.delay) if voice.start.delayed else None
     return Cell(
         note=target.key(voice.note.pitch),
-        instrument=instrument,
-        volume=tracker_volume(voice.note.velocity),
+        instrument=sounded.voicing.slot,
+        volume=sounded.voicing.volume,
         effect=effect,
     )
 
 
-def _place_notes(grids: Grids, allocation: Allocation, *, instrument: int, target: TrackerTarget) -> None:
-    for voice in allocation.voices:
+def _place_notes(grids: Grids, sounding: Sounding, *, target: TrackerTarget) -> None:
+    for sounded in sounding.sounded:
         grids.place(
-            voice.start.row,
-            voice.channel,
-            _note_cell(voice, instrument=instrument, target=target),
+            sounded.voice.start.row,
+            sounded.voice.channel,
+            _note_cell(sounded, target=target),
         )
 
 
-def _place_releases(grids: Grids, allocation: Allocation) -> None:
-    for voice in allocation.voices:
+def _place_releases(grids: Grids, sounding: Sounding) -> None:
+    """Write a key-off where each sounded voice ends, so only a note the module states is released."""
+    for sounded in sounding.sounded:
+        voice = sounded.voice
         if not voice.releases_later:
             continue
 
@@ -157,15 +158,14 @@ class Grid:
 
 def build_patterns(
     grids: Grids,
-    allocation: Allocation,
+    sounding: Sounding,
     tempos: Sequence[TempoEvent],
     grid: RowGrid,
     *,
-    instrument: int,
     target: TrackerTarget,
 ) -> Grid:
-    """Lay the voices and tempo changes of one song onto grids already cut to its length."""
-    _place_notes(grids, allocation, instrument=instrument, target=target)
-    _place_releases(grids, allocation)
+    """Lay the sounded voices and the tempo changes onto grids already cut to the song's length."""
+    _place_notes(grids, sounding, target=target)
+    _place_releases(grids, sounding)
     dropped = _place_tempos(grids, tempos, grid, target=target)
     return Grid(patterns=grids.build(), dropped_tempos=tuple(dropped))

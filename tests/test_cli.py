@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,8 @@ from trackmod.trackers.xm.spec.identity import MAGIC
 
 from midi2tracker.cli import build_parser, main
 from midi2tracker.config import Config, load
+from midi2tracker.instruments.manifest import MANIFEST_VERSION
+from tests.conftest import instrument_file, lift, press, write_midi
 
 
 def test_the_output_defaults_to_the_input_with_the_format_suffix(piece: Path, tmp_path: Path) -> None:
@@ -99,3 +102,60 @@ def test_the_verbose_run_reads_the_grid_against_the_tempo_map(piece: Path, tmp_p
     printed = capsys.readouterr().out
     assert "tempo map" in printed
     assert "BPM" in printed
+
+
+def test_an_instrument_file_reaches_the_module_the_flag_writes(piece: Path, tmp_path: Path, capsys) -> None:
+    source = instrument_file(tmp_path / "piano.it")
+    output = tmp_path / "out.it"
+    assert main([str(piece), str(output), "--instrument-file", str(source)]) == 0
+    assert ITModule.load(output).song.samples[0].frames > 0
+    assert "instruments   1" in capsys.readouterr().out
+
+
+def test_a_bank_manifest_reaches_the_module_the_flag_writes(piece: Path, tmp_path: Path) -> None:
+    instrument_file(tmp_path / "piano.it")
+    manifest = tmp_path / "bank.json"
+    manifest.write_text(
+        json.dumps({"version": MANIFEST_VERSION, "name": "One", "layers": [{"source": {"file": "piano.it"}}]}),
+        encoding="utf-8",
+    )
+    output = tmp_path / "out.it"
+    assert main([str(piece), str(output), "--bank", str(manifest)]) == 0
+    assert ITModule.load(output).song.instruments[0].name == "Sampled 0"
+
+
+def test_an_instrument_that_cannot_be_read_is_reported_rather_than_raised(piece: Path, tmp_path: Path) -> None:
+    with pytest.raises(SystemExit, match="cannot assemble the bank"):
+        main([str(piece), str(tmp_path / "out.it"), "--instrument-file", str(tmp_path / "absent.it")])
+
+
+def test_the_notes_a_run_leaves_out_are_named_in_the_summary(tmp_path: Path, capsys) -> None:
+    source = instrument_file(tmp_path / "piano.it")
+    path = write_midi(tmp_path / "wide.mid", [press(60, 0), lift(60, 96), press(24, 96), lift(24, 192)])
+    assert main([str(path), str(tmp_path / "out.it"), "--instrument-file", str(source), "--verbose"]) == 0
+    printed = capsys.readouterr().out
+    assert "the bank leaves unsampled" in printed
+    assert "MIDI 24" in printed
+
+
+def test_an_instrument_a_format_cannot_store_is_reported_before_anything_is_written(
+    piece: Path,
+    tmp_path: Path,
+) -> None:
+    # FastTracker 2 has no per-sample gain field, so an instrument staged with one belongs to a bank
+    # produced for the format it will be played in; folding the gain into the waveform on the way across
+    # would re-quantise it and undo the staging deliberately.
+    source = instrument_file(tmp_path / "piano.it", gain=32)
+    output = tmp_path / "out.xm"
+    with pytest.raises(SystemExit, match="cannot write this module"):
+        main([str(piece), str(output), "--format", "xm", "--instrument-file", str(source)])
+
+    assert not output.exists()
+
+
+def test_a_note_past_the_keys_the_format_numbers_is_named_in_the_summary(tmp_path: Path, capsys) -> None:
+    path = write_midi(tmp_path / "high.mid", [press(120, 0), lift(120, 96)])
+    assert main([str(path), str(tmp_path / "out.xm"), "--format", "xm", "--verbose"]) == 0
+    printed = capsys.readouterr().out
+    assert "past the keys this format numbers" in printed
+    assert "MIDI 120" in printed

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from trackmod.core.notes.pitch import Note
 from trackmod.core.patterns.builder import PatternBuilder
 from trackmod.core.songs.order import OrderList
@@ -87,7 +88,12 @@ def test_a_pitch_the_keyboard_reaches_keeps_the_octave_it_was_written_in(target:
     assert target.key(72).octave == 5
 
 
-def test_a_pitch_past_the_keyboard_sounds_on_the_nearest_key_there_is() -> None:
+def test_a_pitch_past_the_keyboard_has_no_key_to_be_moved_onto() -> None:
+    # Sounding it on the nearest key there is would put a wrong pitch in the piece, so the conversion
+    # asks first and names what it leaves out.
     fast = canonical(TrackerFormat.XM)
-    assert fast.key(127) == Note(fast.keys.maximum)
-    assert fast.key(0) == Note(fast.keys.minimum)
+    with pytest.raises(ValueError, match="MIDI pitch 127"):
+        fast.key(127)
+
+    with pytest.raises(ValueError, match="MIDI pitch 0"):
+        fast.key(0)

@@ -150,10 +150,13 @@ class TrackerTarget:
         return self.keys.contains(pitch - MIDI_OFFSET)
 
     def key(self, pitch: int) -> Note:
-        """The key this format plays a MIDI pitch on, held to the keys it numbers.
+        """The key this format plays a MIDI pitch on, in the octave the pitch was written in.
 
-        A pitch past either end of the keyboard sounds on the nearest key there is, so a piece reaching
-        outside the format's range still converts and plays the octave it can.
+        Raises:
+            ValueError: when this format's keyboard stops short of the pitch, which :meth:`carries`
+                reports beforehand so a piece states the notes it reaches and names the rest.
         """
-        keys = self.keys
-        return Note(max(keys.minimum, min(keys.maximum, pitch - MIDI_OFFSET)))
+        if not self.carries(pitch):
+            raise ValueError(f"{self.format.upper()} numbers no key for MIDI pitch {pitch}")
+
+        return Note(pitch - MIDI_OFFSET)

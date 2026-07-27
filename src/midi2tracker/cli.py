@@ -10,6 +10,8 @@ from trackmod.limits.compliance import Compliance
 from midi2tracker import __version__
 from midi2tracker.config import AUTOMATIC_SPEED, Config, load
 from midi2tracker.convert import Converted, convert
+from midi2tracker.instruments.error import BankError
+from midi2tracker.midi.events import NoteEvent
 from midi2tracker.tracker.format import TrackerFormat
 
 STATED_PREFIX: Final = "Value error, "  # pydantic prepends this to the message a validator raises
@@ -97,7 +99,25 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
         "--instrument",
         type=int,
         default=defaults.instrument,
-        help="the instrument slot every note plays through",
+        help="the slot the instruments start on",
+    )
+    parser.add_argument(
+        "--bank",
+        type=Path,
+        default=defaults.bank,
+        help="a bank manifest naming the instruments the notes play through",
+    )
+    parser.add_argument(
+        "--instrument-file",
+        type=Path,
+        default=defaults.instrument_file,
+        help="one instrument file every note plays through",
+    )
+    parser.add_argument(
+        "--velocity-map",
+        type=Path,
+        default=defaults.velocity_map,
+        help="the measured velocity map an instrument file is read with (default: one beside it)",
     )
     parser.add_argument(
         "--version",
@@ -133,6 +153,9 @@ def build_config(args: argparse.Namespace, defaults: Config) -> Config:
             "speed": args.speed,
             "tempo": args.tempo,
             "instrument": args.instrument,
+            "bank": args.bank,
+            "instrument_file": args.instrument_file,
+            "velocity_map": args.velocity_map,
         }
     )
 
@@ -148,6 +171,7 @@ def _describe(converted: Converted, path: Path) -> str:
         f"  patterns      {len(conversion.song.patterns)}  ({conversion.rows} rows)",
         f"  channels      {conversion.song.channels}",
         f"  notes         {len(converted.midi.notes)}",
+        f"  instruments   {len(conversion.song.instruments)}  ({len(conversion.song.samples)} sample(s))",
         f"  speed         {converted.grid.speed} ticks/row  ({converted.grid.rows_per_beat} rows/beat)",
         f"  tempo         {tempos[0].beats_per_minute:.1f} BPM{changes} ->  tracker tempo {conversion.song.playback.tempo}",
     ]
@@ -155,20 +179,38 @@ def _describe(converted: Converted, path: Path) -> str:
         lines.append(f"  note          {conversion.stolen_notes} note(s) displaced another; raise --channels")
     if conversion.dropped_tempos:
         lines.append(f"  note          {len(conversion.dropped_tempos)} tempo change(s) found no free effect column")
+    if conversion.unplayable_notes:
+        lines.append(
+            f"  note          {len(conversion.unplayable_notes)} note(s) lie past the keys this format numbers"
+        )
+    if conversion.silent_notes:
+        lines.append(f"  note          {len(conversion.silent_notes)} note(s) reach a key the bank leaves unsampled")
 
     return "\n".join(lines)
 
 
+def _pitches(heading: str, notes: Sequence[NoteEvent]) -> list[str]:
+    """The distinct MIDI pitches one heading covers, so a gap in the music has a name to look up."""
+    if not notes:
+        return []
+
+    stated = ", ".join(str(pitch) for pitch in sorted({note.pitch for note in notes}))
+    return [f"  {heading}", f"    MIDI {stated}"]
+
+
 def _detail(converted: Converted) -> str:
     """Every tempo the piece states and the row it takes effect on, for reading the grid against."""
+    conversion = converted.conversion
     lines = ["  tempo map"]
     for tempo in converted.midi.tempos:
         row = converted.grid.row_of(tempo.tick)
         lines.append(f"    tick {tempo.tick:8d}  row {row:6d}  {tempo.beats_per_minute:7.2f} BPM")
 
-    for dropped in converted.conversion.dropped_tempos:
+    for dropped in conversion.dropped_tempos:
         lines.append(f"    dropped at tick {dropped.tick}: no channel on that row had a free effect column")
 
+    lines.extend(_pitches("past the keys this format numbers", conversion.unplayable_notes))
+    lines.extend(_pitches("left unsampled by the bank", conversion.silent_notes))
     return "\n".join(lines)
 
 
@@ -191,9 +233,9 @@ def _complaint(error: ErrorDetails) -> str:
 
 
 def _reject(invalid: ValidationError) -> str:
-    """The message for a setting outside what the format carries, naming the field and what it says."""
+    """The message for a setting the model refuses, naming the field and what it says."""
     lines = [f"  {_complaint(error)}" for error in invalid.errors()]
-    return "\n".join(["these settings are outside what the format carries:", *lines])
+    return "\n".join(["these settings cannot be used as given:", *lines])
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -206,7 +248,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit(_reject(invalid)) from invalid
 
     output = args.output or args.input.with_suffix(config.target.extension)
-    converted = convert(args.input, config)
+    try:
+        converted = convert(args.input, config)
+    except BankError as unreadable:
+        raise SystemExit(f"cannot assemble the bank:\n  {unreadable}") from unreadable
+
     if not converted.writable:
         raise SystemExit(_refuse(converted))
 

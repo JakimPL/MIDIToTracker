@@ -23,9 +23,19 @@ writes `song.it` beside it: the sustain pedal resolved, the notes spread over as
 polyphony needs, and the tempo changes carried through as effects. `--format xm` writes `song.xm`
 instead — the piece is the same, and each format states it in its own terms.
 
-The module comes out with one **empty instrument slot** and a keymap sending every key to it. Open the
-file in a tracker, drop a waveform into that slot, and the piece plays — the volume envelope holds while a
-key is down and falls silent when it is released, so a real sample lasts exactly as long as the grid says.
+Point it at a sampled instrument and the module plays on its own:
+
+```
+uv run midi2tracker song.mid --instrument-file Piano/module.it
+```
+
+The instrument is carried over as it was produced — its keymap, samples, gains and envelopes all as
+stated — and a `velocity_map.json` sitting beside it is picked up, so each velocity sounds at the volume
+it was measured at. `--bank` reads a manifest naming several instruments and the notes each one answers.
+
+Naming no instrument writes one **empty slot** with a keymap sending every key to it. Open the file in a
+tracker, drop a waveform into that slot, and the piece plays — the volume envelope holds while a key is
+down and falls silent when it is released, so a real sample lasts exactly as long as the grid says.
 
 ## What it does with a MIDI file
 
@@ -37,6 +47,8 @@ key is down and falls silent when it is released, so a real sample lasts exactly
 | the sustain pedal (CC 64) | a note that keeps sounding until the pedal lifts |
 | a tempo change | a tempo effect on the lowest channel with a free effect column |
 | more notes at once than there are channels | the oldest voice gives up its channel, and the count is reported |
+| a note past the keys the format numbers | left out, and its pitch named in the summary |
+| a note on a key the bank never sampled | left out, and its pitch named in the summary |
 
 ## Options
 
@@ -51,7 +63,10 @@ Every knob has a flag and a `config.yaml` entry; the file supplies the defaults 
 | `pattern_rows` | how tall one pattern may be; raised automatically when a piece needs fewer patterns than the order table names, or when the format states a taller floor |
 | `speed` | ticks per row; `0` chooses the finest the piece's fastest tempo allows |
 | `tempo` | an opening BPM override; omit to read it from the file |
-| `instrument` | which instrument slot the notes play through |
+| `instrument` | which slot the instruments start on |
+| `bank` | a manifest naming the instruments the notes play through, and which notes reach each one |
+| `instrument_file` | one instrument file every note plays through, instead of a bank |
+| `velocity_map` | the velocity map that file is read with; omit to pick up one sitting beside it |
 
 Every count is graded against the format it is written for, because the two bound them differently:
 Impulse Tracker plays 64 channels of 200-row patterns and reaches all ten octaves, where FastTracker 2
@@ -75,6 +90,7 @@ translation between them.
 | `midi2tracker/timing` | the tick-to-row grid, the speed choice, and the tempo conversion |
 | `midi2tracker/voices` | spreading overlapping notes across channels |
 | `midi2tracker/song` | writing those voices onto pattern grids and assembling the song |
+| `midi2tracker/instruments` | the bank: which instrument a note plays through, and at what volume |
 | `midi2tracker/tracker` | the one place that branches on the format: every bound, effect and key comes from here |
 | `midi2tracker/convert.py` | one file to one module, end to end |
 | `midi2tracker/cli.py` | the command line |

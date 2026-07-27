@@ -3,9 +3,11 @@ from __future__ import annotations
 from trackmod.core.notes.command import NoteCommand
 from trackmod.core.patterns.cell import Cell
 
+from midi2tracker.instruments.bank import Bank
+from midi2tracker.instruments.velocity import LinearVelocity
 from midi2tracker.midi.events import MidiSong, TempoEvent
-from midi2tracker.song.mapping import tracker_volume
 from midi2tracker.song.patterns import Grid, Grids, build_patterns
+from midi2tracker.song.sounding import sound
 from midi2tracker.timing.grid import RowGrid
 from midi2tracker.timing.tempo import playable_tempo
 from midi2tracker.tracker.target import TrackerTarget
@@ -28,7 +30,8 @@ def written(
     allocation = allocate(song, grid, channels=channels)
     rows = grid.row_of(song.last_tick) + grid.rows_per_beat + 1
     grids = Grids.covering(rows, channels=channels, height=height, minimum=target.min_rows)
-    return build_patterns(grids, allocation, song.tempos, grid, instrument=instrument, target=target)
+    sounding = sound(allocation, bank=Bank.placeholder(offset=instrument), target=target)
+    return build_patterns(grids, sounding, song.tempos, grid, target=target)
 
 
 def cell_at(patterns, row: int, channel: int, *, height: int = 64) -> Cell:
@@ -70,7 +73,7 @@ def test_a_note_fills_its_cells_note_instrument_and_volume(grid: RowGrid, target
     cell = cell_at(result.patterns, 0, 0)
     assert cell.note == target.key(64)
     assert cell.instrument == 3
-    assert cell.volume == tracker_volume(100)
+    assert cell.volume == LinearVelocity().volume(100)
 
 
 def test_a_note_starting_on_its_row_needs_no_effect(grid: RowGrid, target: TrackerTarget) -> None:

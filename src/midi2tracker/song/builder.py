@@ -1,16 +1,15 @@
 from dataclasses import dataclass
 
-from trackmod.core.instruments.instrument import Instrument
-from trackmod.core.instruments.keymap import routed_keymap
 from trackmod.core.songs.order import OrderList
 from trackmod.core.songs.playback import Playback
 from trackmod.core.songs.song import Song
 
-from midi2tracker.midi.events import MidiSong, TempoEvent
+from midi2tracker.instruments.bank import Bank
+from midi2tracker.midi.events import MidiSong, NoteEvent, TempoEvent
 from midi2tracker.song.height import pattern_height
-from midi2tracker.song.instrument import placeholder_instrument, placeholder_sample
 from midi2tracker.song.layout import Layout
 from midi2tracker.song.patterns import Grids, build_patterns
+from midi2tracker.song.sounding import sound
 from midi2tracker.timing.grid import RowGrid
 from midi2tracker.timing.tempo import playable_tempo
 from midi2tracker.tracker.target import TrackerTarget
@@ -26,21 +25,13 @@ class Conversion:
     song: Song
     stolen_notes: int
     dropped_tempos: tuple[TempoEvent, ...]
+    unplayable_notes: tuple[NoteEvent, ...]
+    silent_notes: tuple[NoteEvent, ...]
 
     @property
     def rows(self) -> int:
         """How many rows the song plays through."""
         return self.song.rows
-
-
-def _instruments(slot: int) -> tuple[Instrument, ...]:
-    """The instrument list, with the played one in ``slot`` and empty slots reserved before it.
-
-    A tracker names instruments by position, so putting the notes on a chosen slot means the slots below
-    it exist and hold nothing — which is exactly what an empty keymap is.
-    """
-    silent = Instrument(name="", keymap=routed_keymap({}))
-    return (*(silent for _ in range(slot)), placeholder_instrument())
 
 
 def _channels_used(allocation: Allocation) -> int:
@@ -59,8 +50,9 @@ def build_song(
     layout: Layout,
     *,
     target: TrackerTarget,
+    bank: Bank,
 ) -> Conversion:
-    """The song a MIDI file becomes: its voices on channels, its tempo changes as effects."""
+    """The song a MIDI file becomes: its voices on channels, played through a bank, tempo changes and all."""
     rows = grid.row_of(midi.last_tick) + grid.rows_per_beat * TRAILING_BEATS + 1
     channels = _channels_used(allocation)
     grids = Grids.covering(
@@ -69,14 +61,16 @@ def build_song(
         height=pattern_height(rows, preferred=layout.height, target=target),
         minimum=target.min_rows,
     )
-    written = build_patterns(grids, allocation, midi.tempos, grid, instrument=layout.slot, target=target)
+    sounding = sound(allocation, bank=bank, target=target)
+    written = build_patterns(grids, sounding, midi.tempos, grid, target=target)
+    instruments, samples = bank.content
     song = Song(
         name=layout.name,
         channels=channels,
         patterns=written.patterns,
         order=OrderList.sequential(len(written.patterns)),
-        instruments=_instruments(layout.slot),
-        samples=(placeholder_sample(),),
+        instruments=instruments,
+        samples=samples,
         playback=Playback(
             speed=grid.speed,
             tempo=playable_tempo(
@@ -91,4 +85,6 @@ def build_song(
         song=song,
         stolen_notes=allocation.stolen,
         dropped_tempos=written.dropped_tempos,
+        unplayable_notes=sounding.unplayable,
+        silent_notes=sounding.silent,
     )

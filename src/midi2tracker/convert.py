@@ -7,6 +7,7 @@ from trackmod.limits.violation import Violation
 from trackmod.module.protocol import TrackerModule
 
 from midi2tracker.config import Config
+from midi2tracker.instruments.bank import Bank
 from midi2tracker.midi.events import MidiSong
 from midi2tracker.midi.parser import parse_midi
 from midi2tracker.song.builder import Conversion, build_song
@@ -51,15 +52,35 @@ def row_grid(midi: MidiSong, config: Config) -> RowGrid:
     return RowGrid(pulses_per_beat=midi.pulses_per_beat, rows_per_beat=config.rows_per_beat, speed=speed)
 
 
+def instrument_bank(config: Config) -> Bank:
+    """The instruments a conversion plays through, from whichever of the settings names them.
+
+    Raises:
+        BankError: when the manifest, an instrument, or a velocity map cannot be read.
+    """
+    if config.bank is not None:
+        return Bank.from_manifest(config.bank, offset=config.slot)
+
+    if config.instrument_file is not None:
+        return Bank.from_instrument(config.instrument_file, velocity_map=config.velocity_map, offset=config.slot)
+
+    return Bank.placeholder(offset=config.slot)
+
+
 def convert(path: Path | str, config: Config) -> Converted:
-    """Convert the MIDI file at ``path`` into a module under ``config``."""
+    """Convert the MIDI file at ``path`` into a module under ``config``.
+
+    Raises:
+        BankError: when the instruments the settings name cannot be read.
+    """
     target = config.target
+    bank = instrument_bank(config)
     parsed = parse_midi(path)
     midi = parsed if config.tempo is None else parsed.starting_at(config.tempo)
     grid = row_grid(midi, config)
     allocation = allocate(midi, grid, channels=config.channels)
-    layout = Layout(height=config.pattern_rows, slot=config.slot, name=Path(path).stem)
-    conversion = build_song(midi, allocation, grid, layout, target=target)
+    layout = Layout(height=config.pattern_rows, name=Path(path).stem)
+    conversion = build_song(midi, allocation, grid, layout, target=target, bank=bank)
     return Converted(
         module=target.bind(conversion.song),
         midi=midi,

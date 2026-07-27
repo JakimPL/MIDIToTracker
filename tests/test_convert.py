@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
+from trackmod.core.instruments.transfer import extract
 from trackmod.core.notes.command import NoteCommand
 from trackmod.core.songs.song import Song
 from trackmod.limits.compliance import Compliance
@@ -12,11 +15,23 @@ from trackmod.trackers.xm.module import XMModule
 
 from midi2tracker.config import Config
 from midi2tracker.convert import convert, row_grid
+from midi2tracker.instruments.error import BankError
+from midi2tracker.instruments.manifest import MANIFEST_VERSION
+from midi2tracker.instruments.source import load_unit
+from midi2tracker.instruments.velocity import VELOCITY_COUNT
 from midi2tracker.midi.parser import parse_midi
 from midi2tracker.timing.speed import speed_bound
 from midi2tracker.tracker.format import TrackerFormat
 from midi2tracker.tracker.target import TrackerTarget
-from tests.conftest import lift, pedal, press, write_midi
+from tests.conftest import (
+    SAMPLE_FRAMES,
+    instrument_file,
+    lift,
+    pedal,
+    press,
+    velocity_map_file,
+    write_midi,
+)
 
 
 def settings(target: TrackerTarget, **stated: object) -> Config:
@@ -95,6 +110,95 @@ def test_the_instrument_slot_reserves_the_slots_below_it(piece: Path, target: Tr
     assert len(instruments) == 5
     assert all(assignment is None for instrument in instruments[:4] for assignment in instrument.keymap)
     assert converted.writable
+
+
+def test_a_conversion_naming_no_instrument_still_writes_the_slot_to_fill_in(piece: Path, target: TrackerTarget) -> None:
+    song = convert(piece, settings(target)).conversion.song
+    assert len(song.instruments) == 1
+    assert song.samples[0].frames == 0
+
+
+def test_an_instrument_file_is_what_the_notes_play_through(piece: Path, tmp_path: Path, target: TrackerTarget) -> None:
+    source = instrument_file(tmp_path / "piano.it")
+    converted = convert(piece, settings(target, instrument_file=source))
+    song = converted.conversion.song
+    assert converted.writable
+    assert len(song.samples) == 1 and song.samples[0].frames == SAMPLE_FRAMES
+
+
+def test_the_instrument_reaches_the_written_file_verbatim(piece: Path, tmp_path: Path) -> None:
+    # Taking an instrument as it was produced is the contract, so the keymap and every sample setting
+    # have to survive the trip out to disk and back.
+    source = load_unit(instrument_file(tmp_path / "piano.it"), 0)
+    output = convert(piece, Config(instrument_file=tmp_path / "piano.it")).save(tmp_path / "out.it")
+    recovered = extract(ITModule.load(output).song, 0)
+    assert recovered.instrument.keymap == source.instrument.keymap
+    assert recovered.samples == source.samples
+
+
+def test_a_velocity_map_beside_the_instrument_decides_the_volume_column(piece: Path, tmp_path: Path) -> None:
+    instrument_file(tmp_path / "piano.it")
+    velocity_map_file(tmp_path / "velocity_map.json", [9] * VELOCITY_COUNT)
+    converted = convert(piece, Config(instrument_file=tmp_path / "piano.it"))
+    volumes = {int(volume) for pattern in converted.conversion.song.patterns for volume in pattern.volume.flat}
+    assert 9 in volumes
+
+
+def test_a_note_the_instrument_was_never_sampled_over_is_reported(tmp_path: Path, target: TrackerTarget) -> None:
+    path = write_midi(tmp_path / "wide.mid", [press(60, 0), lift(60, 96), press(24, 96), lift(24, 192)])
+    converted = convert(path, settings(target, instrument_file=instrument_file(tmp_path / "piano.it")))
+    assert [note.pitch for note in converted.conversion.silent_notes] == [24]
+    assert converted.conversion.unplayable_notes == ()
+    assert converted.writable
+
+
+def test_a_note_past_the_keys_the_format_numbers_is_reported(tmp_path: Path) -> None:
+    # FastTracker 2 stops eight octaves up, so the same piece states every note as Impulse Tracker and
+    # names one of them as out of reach as FastTracker 2.
+    path = write_midi(tmp_path / "high.mid", [press(60, 0), lift(60, 96), press(120, 96), lift(120, 192)])
+    fast = convert(path, Config(format=TrackerFormat.XM))
+    impulse = convert(path, Config(format=TrackerFormat.IT))
+    assert [note.pitch for note in fast.conversion.unplayable_notes] == [120]
+    assert impulse.conversion.unplayable_notes == ()
+
+
+def test_a_bank_manifest_puts_each_layer_on_a_slot_of_its_own(piece: Path, tmp_path: Path) -> None:
+    instrument_file(tmp_path / "quiet.it", name="Quiet")
+    instrument_file(tmp_path / "loud.it", name="Loud")
+    manifest = tmp_path / "bank.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "version": MANIFEST_VERSION,
+                "name": "Layered",
+                "layers": [
+                    {"source": {"file": "quiet.it"}, "select": {"velocity": {"low": 0, "high": 63}}},
+                    {"source": {"file": "loud.it"}},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    converted = convert(piece, Config(bank=manifest))
+    song = converted.conversion.song
+    assert [instrument.name for instrument in song.instruments] == ["Quiet 0", "Loud 0"]
+    assert len(song.samples) == 2
+    assert converted.writable
+
+
+def test_an_instrument_the_settings_name_and_cannot_be_read_is_reported(piece: Path, tmp_path: Path) -> None:
+    with pytest.raises(BankError):
+        convert(piece, Config(instrument_file=tmp_path / "absent.it"))
+
+
+def test_naming_both_a_bank_and_an_instrument_file_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(ValidationError, match="state one"):
+        Config(bank=tmp_path / "bank.json", instrument_file=tmp_path / "piano.it")
+
+
+def test_a_velocity_map_with_no_instrument_file_to_read_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(ValidationError, match="which file"):
+        Config(velocity_map=tmp_path / "velocity_map.json")
 
 
 def test_a_channel_ceiling_costs_notes_rather_than_the_conversion(piece: Path, target: TrackerTarget) -> None:
