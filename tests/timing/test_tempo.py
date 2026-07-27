@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from trackmod.xm.spec.effects import TEMPO_PARAMETER
+from trackmod.trackers.xm.spec.effects import TEMPO_PARAMETER
 
 from midi2tracker.spec import TICKS_PER_BEAT
 from midi2tracker.timing.tempo import playable_tempo, tracker_tempo

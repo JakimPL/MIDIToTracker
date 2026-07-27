@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from trackmod.xm.module import XMModule
-from trackmod.xm.spec.identity import MAGIC
+from trackmod.trackers.xm.module import XMModule
+from trackmod.trackers.xm.spec.identity import MAGIC
 
 from midi2tracker.cli import build_parser, main
 from midi2tracker.config import Config, load

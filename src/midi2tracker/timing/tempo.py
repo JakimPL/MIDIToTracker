@@ -1,4 +1,4 @@
-from trackmod.xm.spec.effects import TEMPO_PARAMETER
+from trackmod.trackers.xm.spec.effects import TEMPO_PARAMETER
 
 from midi2tracker.spec import TICKS_PER_BEAT
 

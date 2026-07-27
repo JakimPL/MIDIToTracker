@@ -6,8 +6,8 @@ import pytest
 from trackmod.core.notes.command import NoteCommand
 from trackmod.limits.compliance import Compliance
 from trackmod.spec.grid import EMPTY
-from trackmod.xm.module import XMModule
-from trackmod.xm.spec.ranges import MAX_PATTERNS, MAX_ROWS
+from trackmod.trackers.xm.module import XMModule
+from trackmod.trackers.xm.spec.ranges import MAX_PATTERNS, MAX_ROWS
 
 from midi2tracker.config import Config
 from midi2tracker.convert import convert, row_grid

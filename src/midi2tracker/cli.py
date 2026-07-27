@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from pydantic import ValidationError
-from trackmod.xm.spec.identity import EXTENSION
+from trackmod.trackers.xm.spec.identity import EXTENSION
 
 from midi2tracker import __version__
 from midi2tracker.config import AUTOMATIC_SPEED, Config, load

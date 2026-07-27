@@ -7,7 +7,7 @@ from trackmod.core.notes.command import NoteCommand
 from trackmod.core.patterns.builder import PatternBuilder
 from trackmod.core.patterns.cell import Cell
 from trackmod.core.patterns.grid import Pattern
-from trackmod.xm.effects.catalog import XM_EFFECTS
+from trackmod.trackers.xm.effects.catalog import XM_EFFECTS
 
 from midi2tracker.midi.events import TempoEvent
 from midi2tracker.song.mapping import tracker_note, tracker_volume

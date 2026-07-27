@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from trackmod.core.notes.command import NoteCommand
 from trackmod.core.patterns.cell import Cell
-from trackmod.xm.effects.catalog import XM_EFFECTS
-from trackmod.xm.effects.command import XMEffect
+from trackmod.trackers.xm.effects.catalog import XM_EFFECTS
+from trackmod.trackers.xm.effects.command import XMEffect
 
 from midi2tracker.midi.events import MidiSong, TempoEvent
 from midi2tracker.song.mapping import tracker_note, tracker_volume

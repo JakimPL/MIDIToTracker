@@ -1,4 +1,4 @@
-from trackmod.xm.spec.effects import NIBBLE_PARAMETER, SPEED_PARAMETER, TEMPO_PARAMETER
+from trackmod.trackers.xm.spec.effects import NIBBLE_PARAMETER, SPEED_PARAMETER, TEMPO_PARAMETER
 
 from midi2tracker.timing.tempo import tracker_tempo
 

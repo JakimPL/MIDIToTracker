@@ -5,8 +5,8 @@ from pathlib import Path
 
 from trackmod.limits.compliance import Compliance
 from trackmod.limits.violation import Violation
-from trackmod.xm.module import XMModule
-from trackmod.xm.settings import XMSettings
+from trackmod.trackers.xm.module import XMModule
+from trackmod.trackers.xm.settings import XMSettings
 
 from midi2tracker.config import Config
 from midi2tracker.midi.events import MidiSong

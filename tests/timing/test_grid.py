@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from trackmod.xm.spec.effects import NIBBLE_PARAMETER
+from trackmod.trackers.xm.spec.effects import NIBBLE_PARAMETER
 
 from midi2tracker.timing.grid import RowGrid
 

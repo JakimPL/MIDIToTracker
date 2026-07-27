@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from trackmod.xm.spec.ranges import MAX_PATTERNS, MAX_ROWS
+from trackmod.trackers.xm.spec.ranges import MAX_PATTERNS, MAX_ROWS
 
 from midi2tracker.song.height import pattern_height
 

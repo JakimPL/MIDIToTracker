@@ -1,4 +1,4 @@
-from trackmod.xm.spec.ranges import MAX_PATTERNS, MAX_ROWS
+from trackmod.trackers.xm.spec.ranges import MAX_PATTERNS, MAX_ROWS
 
 
 def pattern_height(rows: int, *, preferred: int) -> int:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from trackmod.xm.spec.effects import NIBBLE_PARAMETER, TEMPO_PARAMETER
+from trackmod.trackers.xm.spec.effects import NIBBLE_PARAMETER, TEMPO_PARAMETER
 
 from midi2tracker.timing.speed import MAX_SPEED, MIN_SPEED, select_speed
 from midi2tracker.timing.tempo import tracker_tempo

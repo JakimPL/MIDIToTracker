@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
-from trackmod.xm.spec.ranges import (
+from trackmod.trackers.xm.spec.ranges import (
     CANONICAL_MAX_CHANNELS,
     CANONICAL_MAX_INSTRUMENTS,
     MAX_ROWS,
