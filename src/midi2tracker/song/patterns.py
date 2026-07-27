@@ -7,12 +7,12 @@ from trackmod.core.notes.command import NoteCommand
 from trackmod.core.patterns.builder import PatternBuilder
 from trackmod.core.patterns.cell import Cell
 from trackmod.core.patterns.grid import Pattern
-from trackmod.trackers.xm.effects.catalog import XM_EFFECTS
 
 from midi2tracker.midi.events import TempoEvent
-from midi2tracker.song.mapping import tracker_note, tracker_volume
+from midi2tracker.song.mapping import tracker_volume
 from midi2tracker.timing.grid import RowGrid
 from midi2tracker.timing.tempo import playable_tempo
+from midi2tracker.tracker.target import TrackerTarget
 from midi2tracker.voices.allocation import Allocation
 from midi2tracker.voices.voice import Voice
 
@@ -29,10 +29,17 @@ class Grids:
     height: int
 
     @classmethod
-    def covering(cls, rows: int, *, channels: int, height: int) -> Grids:
-        """Enough patterns of ``height`` rows to hold ``rows`` rows, the last one holding the remainder."""
+    def covering(cls, rows: int, *, channels: int, height: int, minimum: int) -> Grids:
+        """Enough patterns of ``height`` rows to hold ``rows`` rows, each at least ``minimum`` tall.
+
+        A format stating a floor for a pattern's height applies it to the trailing pattern as well, so a
+        remainder shorter than the floor is padded up to it and the piece ends on silent rows.
+
+        The height a caller asks for is at least the floor, which
+        :func:`~midi2tracker.song.height.pattern_height` is what guarantees.
+        """
         total = max(rows, 1)
-        heights = [min(height, total - start) for start in range(0, total, height)]
+        heights = [max(minimum, min(height, total - start)) for start in range(0, total, height)]
         return cls(
             builders=tuple(PatternBuilder(rows=each, channels=channels) for each in heights),
             height=height,
@@ -79,23 +86,23 @@ class Grids:
         return tuple(builder.build() for builder in self.builders)
 
 
-def _note_cell(voice: Voice, *, instrument: int) -> Cell:
+def _note_cell(voice: Voice, *, instrument: int, target: TrackerTarget) -> Cell:
     """The cell that starts a voice, carrying a note delay when it begins partway into its row."""
-    effect = XM_EFFECTS.note_delay(voice.start.delay) if voice.start.delayed else None
+    effect = target.effects.note_delay(voice.start.delay) if voice.start.delayed else None
     return Cell(
-        note=tracker_note(voice.note.pitch),
+        note=target.key(voice.note.pitch),
         instrument=instrument,
         volume=tracker_volume(voice.note.velocity),
         effect=effect,
     )
 
 
-def _place_notes(grids: Grids, allocation: Allocation, *, instrument: int) -> None:
+def _place_notes(grids: Grids, allocation: Allocation, *, instrument: int, target: TrackerTarget) -> None:
     for voice in allocation.voices:
         grids.place(
             voice.start.row,
             voice.channel,
-            _note_cell(voice, instrument=instrument),
+            _note_cell(voice, instrument=instrument, target=target),
         )
 
 
@@ -113,6 +120,8 @@ def _place_tempos(
     grids: Grids,
     tempos: Sequence[TempoEvent],
     grid: RowGrid,
+    *,
+    target: TrackerTarget,
 ) -> list[TempoEvent]:
     """Write every tempo change past the opening one, returning those with nowhere to go."""
     dropped: list[TempoEvent] = []
@@ -123,11 +132,12 @@ def _place_tempos(
             dropped.append(tempo)
             continue
 
-        effect = XM_EFFECTS.set_tempo(
+        effect = target.effects.set_tempo(
             playable_tempo(
                 tempo.beats_per_minute,
                 speed=grid.speed,
                 rows_per_beat=grid.rows_per_beat,
+                target=target,
             )
         )
         occupant = grids.read(row, channel)
@@ -152,9 +162,10 @@ def build_patterns(
     grid: RowGrid,
     *,
     instrument: int,
+    target: TrackerTarget,
 ) -> Grid:
     """Lay the voices and tempo changes of one song onto grids already cut to its length."""
-    _place_notes(grids, allocation, instrument=instrument)
+    _place_notes(grids, allocation, instrument=instrument, target=target)
     _place_releases(grids, allocation)
-    dropped = _place_tempos(grids, tempos, grid)
+    dropped = _place_tempos(grids, tempos, grid, target=target)
     return Grid(patterns=grids.build(), dropped_tempos=tuple(dropped))

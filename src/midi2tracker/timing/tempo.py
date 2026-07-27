@@ -1,6 +1,5 @@
-from trackmod.trackers.xm.spec.effects import TEMPO_PARAMETER
-
 from midi2tracker.spec import TICKS_PER_BEAT
+from midi2tracker.tracker.target import TrackerTarget
 
 
 def tracker_tempo(
@@ -18,18 +17,20 @@ def playable_tempo(
     *,
     speed: int,
     rows_per_beat: int,
+    target: TrackerTarget,
 ) -> int:
-    """The same tempo held to what the tempo effect's parameter byte can name.
+    """The same tempo held to what the tempo effect's parameter names on this format.
 
-    A tempo outside that range plays at the nearest one the byte reaches, so a piece too fast or too slow
-    for the tracker still converts and simply plays at the speed it can.
+    A tempo outside that range plays at the nearest one the parameter reaches, so a piece too fast or too
+    slow for the tracker still converts and simply plays at the speed it can.
     """
+    parameter = target.tempo_parameter
     tempo = tracker_tempo(
         beats_per_minute,
         speed=speed,
         rows_per_beat=rows_per_beat,
     )
     return max(
-        TEMPO_PARAMETER.minimum,
-        min(TEMPO_PARAMETER.maximum, tempo),
+        parameter.minimum,
+        min(parameter.maximum, tempo),
     )

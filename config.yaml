@@ -1,3 +1,5 @@
+format: it             # the tracker format the module is written as: it or xm
+compliance: canonical  # canonical holds to what the tracker itself reads; extended to what the file holds
 rows_per_beat: 16      # how many rows a quarter note is spread over
 channels: 32           # the polyphony ceiling
 pattern_rows: 64       # how tall one pattern may be

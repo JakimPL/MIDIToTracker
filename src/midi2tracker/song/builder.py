@@ -13,6 +13,7 @@ from midi2tracker.song.layout import Layout
 from midi2tracker.song.patterns import Grids, build_patterns
 from midi2tracker.timing.grid import RowGrid
 from midi2tracker.timing.tempo import playable_tempo
+from midi2tracker.tracker.target import TrackerTarget
 from midi2tracker.voices.allocation import Allocation
 
 TRAILING_BEATS = 1
@@ -56,12 +57,19 @@ def build_song(
     allocation: Allocation,
     grid: RowGrid,
     layout: Layout,
+    *,
+    target: TrackerTarget,
 ) -> Conversion:
     """The song a MIDI file becomes: its voices on channels, its tempo changes as effects."""
     rows = grid.row_of(midi.last_tick) + grid.rows_per_beat * TRAILING_BEATS + 1
     channels = _channels_used(allocation)
-    grids = Grids.covering(rows, channels=channels, height=pattern_height(rows, preferred=layout.height))
-    written = build_patterns(grids, allocation, midi.tempos, grid, instrument=layout.slot)
+    grids = Grids.covering(
+        rows,
+        channels=channels,
+        height=pattern_height(rows, preferred=layout.height, target=target),
+        minimum=target.min_rows,
+    )
+    written = build_patterns(grids, allocation, midi.tempos, grid, instrument=layout.slot, target=target)
     song = Song(
         name=layout.name,
         channels=channels,
@@ -75,6 +83,7 @@ def build_song(
                 midi.tempos[0].beats_per_minute,
                 speed=grid.speed,
                 rows_per_beat=grid.rows_per_beat,
+                target=target,
             ),
         ),
     )

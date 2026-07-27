@@ -1,13 +1,18 @@
 import argparse
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Final
 
 from pydantic import ValidationError
-from trackmod.trackers.xm.spec.identity import EXTENSION
+from pydantic_core import ErrorDetails
+from trackmod.limits.compliance import Compliance
 
 from midi2tracker import __version__
 from midi2tracker.config import AUTOMATIC_SPEED, Config, load
 from midi2tracker.convert import Converted, convert
+from midi2tracker.tracker.format import TrackerFormat
+
+STATED_PREFIX: Final = "Value error, "  # pydantic prepends this to the message a validator raises
 
 
 def _config_argument(argv: Sequence[str] | None) -> Path | None:
@@ -23,7 +28,7 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
     """The command line, with every knob defaulting to what the configuration states."""
     parser = argparse.ArgumentParser(
         prog="midi2tracker",
-        description="Convert a MIDI file into a FastTracker 2 module",
+        description="Convert a MIDI file into a tracker module",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
@@ -36,13 +41,27 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
         type=Path,
         nargs="?",
         default=None,
-        help="output .xm file (default: the input's name)",
+        help="output module (default: the input's name with the format's suffix)",
     )
     parser.add_argument(
         "--config",
         type=Path,
         default=None,
         help="a YAML configuration file",
+    )
+    parser.add_argument(
+        "--format",
+        type=TrackerFormat,
+        choices=tuple(TrackerFormat),
+        default=defaults.format,
+        help="the tracker format the module is written as",
+    )
+    parser.add_argument(
+        "--compliance",
+        type=Compliance,
+        choices=tuple(Compliance),
+        default=defaults.compliance,
+        help="how strictly the module holds to the tracker the format was designed for",
     )
     parser.add_argument(
         "--channels",
@@ -106,6 +125,8 @@ def build_config(args: argparse.Namespace, defaults: Config) -> Config:
     return Config.model_validate(
         defaults.model_dump()
         | {
+            "format": args.format,
+            "compliance": args.compliance,
             "channels": args.channels,
             "rows_per_beat": args.rows_per_beat,
             "pattern_rows": args.pattern_rows,
@@ -156,22 +177,35 @@ def _refuse(converted: Converted) -> str:
     return "\n".join(["cannot write this module:", *(f"  {violation}" for violation in converted.violations)])
 
 
+def _complaint(error: ErrorDetails) -> str:
+    """One validation error as the command line states it: the flag it came from, or the whole setting.
+
+    A rule spanning several fields is stated by the model itself and names no field, so its own wording
+    is what the caller reads.
+    """
+    stated = error["msg"].removeprefix(STATED_PREFIX)
+    if not error["loc"]:
+        return stated
+
+    return f"--{str(error['loc'][0]).replace('_', '-')}: {stated}"
+
+
 def _reject(invalid: ValidationError) -> str:
     """The message for a setting outside what the format carries, naming the field and what it says."""
-    lines = [f"  --{error['loc'][0]}: {error['msg']}".replace("_", "-", 1) for error in invalid.errors()]
+    lines = [f"  {_complaint(error)}" for error in invalid.errors()]
     return "\n".join(["these settings are outside what the format carries:", *lines])
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     defaults = load(_config_argument(argv))
     args = build_parser(defaults).parse_args(argv)
-    output = args.output or args.input.with_suffix(EXTENSION)
 
     try:
         config = build_config(args, defaults)
     except ValidationError as invalid:
         raise SystemExit(_reject(invalid)) from invalid
 
+    output = args.output or args.input.with_suffix(config.target.extension)
     converted = convert(args.input, config)
     if not converted.writable:
         raise SystemExit(_refuse(converted))

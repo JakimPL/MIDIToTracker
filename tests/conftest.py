@@ -4,13 +4,21 @@ from pathlib import Path
 
 import mido
 import pytest
+from trackmod.limits.compliance import Compliance
 
 from midi2tracker.midi.events import MidiSong, NoteEvent, TempoEvent
 from midi2tracker.spec import DEFAULT_MICROSECONDS_PER_BEAT, SUSTAIN_CONTROLLER
 from midi2tracker.timing.grid import RowGrid
+from midi2tracker.tracker.format import TrackerFormat
+from midi2tracker.tracker.target import TrackerTarget
 
 DATA = Path(__file__).parent / "data"
 PULSES = 96
+
+
+def canonical(tracker_format: TrackerFormat) -> TrackerTarget:
+    """One format's target at the compliance a conversion writes under by default."""
+    return TrackerTarget(format=tracker_format, compliance=Compliance.CANONICAL)
 
 
 def note(tick_on: int, ticks: int, pitch: int = 60, velocity: int = 100) -> NoteEvent:
@@ -52,6 +60,12 @@ def lift(pitch: int, tick: int) -> tuple[mido.Message, int]:
 
 def pedal(value: int, tick: int) -> tuple[mido.Message, int]:
     return mido.Message("control_change", control=SUSTAIN_CONTROLLER, value=value), tick
+
+
+@pytest.fixture(params=tuple(TrackerFormat), ids=tuple(TrackerFormat))
+def target(request: pytest.FixtureRequest) -> TrackerTarget:
+    """Every format a module is written as, so a pass is checked through each of them."""
+    return canonical(request.param)
 
 
 @pytest.fixture

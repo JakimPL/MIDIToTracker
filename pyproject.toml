@@ -81,6 +81,9 @@ warn_required_dynamic_aliases = true
 load-plugins = ["pylint_pydantic"]
 fail-under = 9.9
 
+[tool.pylint.design]
+max-args = 6
+
 [tool.pylint."messages control"]
 disable = [
     "missing-module-docstring",

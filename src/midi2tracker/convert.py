@@ -3,17 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from trackmod.limits.compliance import Compliance
 from trackmod.limits.violation import Violation
-from trackmod.trackers.xm.module import XMModule
-from trackmod.trackers.xm.settings import XMSettings
+from trackmod.module.protocol import TrackerModule
 
 from midi2tracker.config import Config
 from midi2tracker.midi.events import MidiSong
 from midi2tracker.midi.parser import parse_midi
 from midi2tracker.song.builder import Conversion, build_song
 from midi2tracker.song.layout import Layout
-from midi2tracker.spec import TRACKER_NAME
 from midi2tracker.timing.grid import RowGrid
 from midi2tracker.timing.speed import select_speed
 from midi2tracker.voices.allocation import allocate
@@ -23,7 +20,7 @@ from midi2tracker.voices.allocation import allocate
 class Converted:
     """A converted piece: the module, the clock it plays on, and what the conversion cost."""
 
-    module: XMModule
+    module: TrackerModule
     midi: MidiSong
     grid: RowGrid
     conversion: Conversion
@@ -46,32 +43,25 @@ class Converted:
 
 def row_grid(midi: MidiSong, config: Config) -> RowGrid:
     """The clock a piece is placed on: its own resolution, the row rate asked for, and a speed."""
-    speed = select_speed(midi.fastest, config.rows_per_beat) if config.automatic_speed else config.speed
+    speed = (
+        select_speed(midi.fastest, config.rows_per_beat, target=config.target)
+        if config.automatic_speed
+        else config.speed
+    )
     return RowGrid(pulses_per_beat=midi.pulses_per_beat, rows_per_beat=config.rows_per_beat, speed=speed)
 
 
-def convert(
-    path: Path | str,
-    config: Config,
-    *,
-    compliance: Compliance = Compliance.CANONICAL,
-) -> Converted:
+def convert(path: Path | str, config: Config) -> Converted:
     """Convert the MIDI file at ``path`` into a module under ``config``."""
+    target = config.target
     parsed = parse_midi(path)
     midi = parsed if config.tempo is None else parsed.starting_at(config.tempo)
     grid = row_grid(midi, config)
     allocation = allocate(midi, grid, channels=config.channels)
     layout = Layout(height=config.pattern_rows, slot=config.slot, name=Path(path).stem)
-    conversion = build_song(midi, allocation, grid, layout)
-    module = XMModule.from_song(
-        conversion.song,
-        compliance=compliance,
-        settings=XMSettings(
-            tracker=TRACKER_NAME,
-        ),
-    )
+    conversion = build_song(midi, allocation, grid, layout, target=target)
     return Converted(
-        module=module,
+        module=target.bind(conversion.song),
         midi=midi,
         grid=grid,
         conversion=conversion,

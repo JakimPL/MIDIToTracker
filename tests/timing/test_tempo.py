@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import pytest
-from trackmod.trackers.xm.spec.effects import TEMPO_PARAMETER
 
 from midi2tracker.spec import TICKS_PER_BEAT
 from midi2tracker.timing.tempo import playable_tempo, tracker_tempo
+from midi2tracker.tracker.target import TrackerTarget
 
 
 def test_the_reference_clock_is_the_identity() -> None:
@@ -29,13 +29,18 @@ def test_the_conversion_follows_the_definition() -> None:
     ("beats_per_minute", "speed", "rows_per_beat"),
     [(20.0, 1, 1), (600.0, 16, 32), (120.0, 6, 4), (40.0, 2, 3)],
 )
-def test_a_playable_tempo_always_lands_inside_the_parameter_byte(
-    beats_per_minute: float, speed: int, rows_per_beat: int
+def test_a_playable_tempo_always_lands_inside_the_parameter(
+    beats_per_minute: float,
+    speed: int,
+    rows_per_beat: int,
+    target: TrackerTarget,
 ) -> None:
     # The opening tempo is held to what the effect can name too, so a piece whose tempo changes can
     # still return to the one it started on.
-    assert TEMPO_PARAMETER.contains(playable_tempo(beats_per_minute, speed=speed, rows_per_beat=rows_per_beat))
+    tempo = playable_tempo(beats_per_minute, speed=speed, rows_per_beat=rows_per_beat, target=target)
+    assert target.tempo_parameter.contains(tempo)
 
 
-def test_a_tempo_inside_the_range_is_left_alone() -> None:
-    assert playable_tempo(120.0, speed=6, rows_per_beat=4) == tracker_tempo(120.0, speed=6, rows_per_beat=4)
+def test_a_tempo_inside_the_range_is_left_alone(target: TrackerTarget) -> None:
+    playable = playable_tempo(120.0, speed=6, rows_per_beat=4, target=target)
+    assert playable == tracker_tempo(120.0, speed=6, rows_per_beat=4)

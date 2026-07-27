@@ -1,7 +1,7 @@
-from trackmod.trackers.xm.spec.ranges import MAX_PATTERNS, MAX_ROWS
+from midi2tracker.tracker.target import TrackerTarget
 
 
-def pattern_height(rows: int, *, preferred: int) -> int:
-    """The tallest of the preferred height and the shortest one that keeps the order table in range."""
-    needed = max(1, -(-max(rows, 1) // MAX_PATTERNS))
-    return min(MAX_ROWS, max(preferred, needed))
+def pattern_height(rows: int, *, preferred: int, target: TrackerTarget) -> int:
+    """The tallest of the preferred height, the format's own floor, and what keeps the order table in range."""
+    needed = max(target.min_rows, -(-max(rows, 1) // target.max_patterns))
+    return min(target.max_rows, max(preferred, needed))
