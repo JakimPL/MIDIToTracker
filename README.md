@@ -31,9 +31,11 @@ uv run midi2tracker song.mid --instrument-file Piano/module.it
 
 The instrument is carried over as it was produced — its keymap, samples, gains and envelopes all as
 stated — and a `velocity_map.json` sitting beside it is picked up, so each velocity sounds at the volume
-it was measured at. [`OptiSample`](https://github.com/JakimPL/OptiSample) writes both files; `--bank`
-reads a manifest naming several instruments and the notes each one answers.
-[`docs/bank.md`](docs/bank.md) states the manifest in full.
+it was measured at. A whole module and a standalone instrument (`.it`, `.xm`, `.iti`, `.xi`) are read the
+same way, so the flag takes whichever container a producer ships.
+[`OptiSample`](https://github.com/JakimPL/OptiSample) writes both files; `--bank` reads a manifest naming
+several instruments and the notes each one answers. [`docs/bank.md`](docs/bank.md) states the manifest in
+full.
 
 Naming no instrument writes one **empty slot** with a keymap sending every key to it. Open the file in a
 tracker, drop a waveform into that slot, and the piece plays — the volume envelope holds while a key is

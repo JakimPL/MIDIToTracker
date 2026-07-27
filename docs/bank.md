@@ -35,12 +35,26 @@ reader out of the registry in `instruments/source.py`:
 |---|---|
 | `.it` | An Impulse Tracker module; the instrument at the stated position |
 | `.xm` | A FastTracker 2 module; the instrument at the stated position |
+| `.iti` | An Impulse Tracker instrument on its own, which is position `0` |
+| `.xi` | A FastTracker 2 instrument on its own, which is position `0` |
 
-Reading an instrument out of a whole module is what works today, and a module carrying one instrument is
-how a producer ships one. **Standalone instrument files — `.iti` and `.xi` — are the same reference**: a
-file holding a single instrument, taken at position `0`. Supporting them is two entries in that registry
-once `trackmod` binds the two layouts, and a manifest written today reads unchanged when they land,
-since a reference is already a file and a position within it.
+A **standalone instrument file** is what a producer ships when the instrument rather than a piece is the
+product, and a module carrying one instrument is the other way to ship exactly the same thing. Both are
+one reference — a file and a position within it — so a layer names either the same way and a manifest
+reads the same whichever it points at. `trackmod` binds all four, so the reader is chosen and nothing
+else about a bank changes.
+
+A file holding one instrument holds one, so naming a position above `0` in it is reported the way naming
+a position past the end of a module is.
+
+### What each container keeps
+
+An Impulse Tracker keymap stores a sample number per key and reserves zero for silence, so `.it` and
+`.iti` carry the stretch a producer sampled exactly as it was recorded. A FastTracker 2 keymap stores a
+sample position per key and has no spelling for silence, so `.xm` and `.xi` answer **every one of the 96
+keys the format numbers**: the verified `Piano` routes 61 keys as an `.iti` and 96 as an `.xi`, the extra
+35 sounding its first sample at the pressed key's own pitch. A bank whose unsampled keys are meant to
+stay silent belongs in an Impulse Tracker container.
 
 What a bank reads is independent of what a conversion writes — an Impulse Tracker instrument is equally
 available to a module written as FastTracker 2, and the crossing is graded by the writer (see
@@ -82,7 +96,7 @@ Every field is read, and this is what each one decides:
 | `name` | What the bank is called; a run prints it, so a summary says what the piece played through |
 | `layers` | The instruments, in the order they are tried; at least one |
 | `layers[].source.file` | The file the instrument is read out of, relative to the manifest |
-| `layers[].source.instrument` | Which instrument of that file, counted from zero; `0` when omitted |
+| `layers[].source.instrument` | Which instrument of that file, counted from zero; `0` when omitted, which is what a standalone instrument file holds |
 | `layers[].select` | Which notes this layer answers; omitting it answers every note |
 | `layers[].velocity_map` | The map this layer's velocities were measured with; omitting it reads them evenly |
 
@@ -219,7 +233,9 @@ module.it            the instrument and the samples its keymap reaches
 velocity_map.json    the measured volume for each of the 128 velocities
 ```
 
-which `--instrument-file module.it` takes whole, map included. The verified `Piano` routes 61 keys
+which `--instrument-file module.it` takes whole, map included. An `.iti` or `.xi` beside a
+`velocity_map.json` is read exactly the same way, so a producer chooses the container and the flag stays
+one flag. The verified `Piano` routes 61 keys
 between MIDI 29 and 101 onto 61 samples, recorded at 6–16 kHz in eight and sixteen bits, each staged
 with its own gain — 524 KB of module that plays with no tracker opened.
 

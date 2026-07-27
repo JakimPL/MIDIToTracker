@@ -6,16 +6,24 @@ from pathlib import Path
 import pytest
 from trackmod.core.notes.pitch import Note
 from trackmod.spec.levels import MAX_VOLUME
+from trackmod.trackers.it.spec.identity import INSTRUMENT_EXTENSION as ITI_EXTENSION
+from trackmod.trackers.xm.spec.identity import INSTRUMENT_EXTENSION as XI_EXTENSION
 
 from midi2tracker.instruments.bank import Bank
 from midi2tracker.instruments.error import BankError
 from midi2tracker.instruments.expression import Expression
 from midi2tracker.instruments.manifest import MANIFEST_VERSION
 from midi2tracker.instruments.velocity import VELOCITY_COUNT
-from tests.conftest import SAMPLED_KEYS, instrument_file, velocity_map_file
+from tests.conftest import (
+    SAMPLED_KEYS,
+    instrument_file,
+    standalone_instrument,
+    velocity_map_file,
+)
 
 FIRST_SLOT = 0
 STRUCK = Expression(velocity=100)
+STANDALONE = (ITI_EXTENSION, XI_EXTENSION)
 
 
 def manifest(path: Path, layers: list[dict[str, object]]) -> Path:
@@ -141,6 +149,30 @@ def test_one_instrument_file_goes_by_what_the_instrument_calls_itself(tmp_path: 
 def test_an_instrument_carrying_no_name_goes_by_the_file_it_came_out_of(tmp_path: Path) -> None:
     source = instrument_file(tmp_path / "piano.it", name="")
     assert Bank.from_instrument(source, velocity_map=None, offset=FIRST_SLOT).name == "piano"
+
+
+@pytest.mark.parametrize("suffix", STANDALONE)
+def test_an_instrument_stored_on_its_own_is_a_bank_like_any_other(tmp_path: Path, suffix: str) -> None:
+    source = standalone_instrument(tmp_path / f"piano{suffix}", name="Grand")
+    bank = Bank.from_instrument(source, velocity_map=None, offset=FIRST_SLOT)
+    voicing = bank.voicing(Note.from_midi(60), STRUCK)
+    assert bank.name == "Grand"
+    assert voicing is not None and voicing.slot == FIRST_SLOT
+
+
+@pytest.mark.parametrize("suffix", STANDALONE)
+def test_a_manifest_layer_names_a_standalone_instrument_the_same_way(tmp_path: Path, suffix: str) -> None:
+    # A reference is a file and a position within it, and a file holding one instrument is position zero.
+    standalone_instrument(tmp_path / f"quiet{suffix}", name="Quiet")
+    path = manifest(tmp_path / "bank.json", [{"source": {"file": f"quiet{suffix}"}}])
+    assert Bank.from_manifest(path, offset=FIRST_SLOT).voicing(Note.from_midi(60), STRUCK) is not None
+
+
+def test_a_velocity_map_beside_a_standalone_instrument_is_picked_up(tmp_path: Path) -> None:
+    velocity_map_file(tmp_path / "velocity_map.json", [7] * VELOCITY_COUNT)
+    source = standalone_instrument(tmp_path / f"piano{ITI_EXTENSION}")
+    voicing = Bank.from_instrument(source, velocity_map=None, offset=FIRST_SLOT).voicing(Note.from_midi(60), STRUCK)
+    assert voicing is not None and voicing.volume == 7
 
 
 def test_the_paths_a_manifest_states_are_read_against_the_directory_it_sits_in(tmp_path: Path) -> None:

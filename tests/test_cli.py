@@ -12,7 +12,13 @@ from trackmod.trackers.xm.spec.identity import MAGIC
 from midi2tracker.cli import build_parser, main
 from midi2tracker.config import Config, load
 from midi2tracker.instruments.manifest import MANIFEST_VERSION
-from tests.conftest import instrument_file, lift, press, write_midi
+from tests.conftest import (
+    instrument_file,
+    lift,
+    press,
+    standalone_instrument,
+    write_midi,
+)
 
 
 def test_the_output_defaults_to_the_input_with_the_format_suffix(piece: Path, tmp_path: Path) -> None:
@@ -110,6 +116,20 @@ def test_an_instrument_file_reaches_the_module_the_flag_writes(piece: Path, tmp_
     assert main([str(piece), str(output), "--instrument-file", str(source)]) == 0
     assert ITModule.load(output).song.samples[0].frames > 0
     assert "instruments   1" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("suffix", (".iti", ".xi"))
+def test_an_instrument_stored_on_its_own_reaches_the_module_the_flag_writes(
+    piece: Path,
+    tmp_path: Path,
+    capsys,
+    suffix: str,
+) -> None:
+    source = standalone_instrument(tmp_path / f"piano{suffix}", name="Grand")
+    output = tmp_path / "out.it"
+    assert main([str(piece), str(output), "--instrument-file", str(source)]) == 0
+    assert ITModule.load(output).song.samples[0].frames > 0
+    assert "bank          Grand" in capsys.readouterr().out
 
 
 def test_a_bank_manifest_reaches_the_module_the_flag_writes(piece: Path, tmp_path: Path, capsys) -> None:

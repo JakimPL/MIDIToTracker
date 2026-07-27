@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
+from typing import Final
 
 import mido
 import numpy as np
 import pytest
 from trackmod.core.instruments.instrument import Instrument
 from trackmod.core.instruments.keymap import KeyAssignment, routed_keymap
+from trackmod.core.instruments.unit import InstrumentUnit
 from trackmod.core.notes.pitch import Note
 from trackmod.core.patterns.builder import PatternBuilder
 from trackmod.core.samples.sample import Sample
@@ -16,8 +18,13 @@ from trackmod.core.songs.order import OrderList
 from trackmod.core.songs.playback import Playback
 from trackmod.core.songs.song import Song
 from trackmod.limits.compliance import Compliance
+from trackmod.module.instrument import InstrumentFile
 from trackmod.spec.levels import MAX_VOLUME
+from trackmod.trackers.it.instrument_file import ITInstrumentFile
 from trackmod.trackers.it.module import ITModule
+from trackmod.trackers.it.spec.identity import INSTRUMENT_EXTENSION as ITI_EXTENSION
+from trackmod.trackers.xm.instrument_file import XMInstrumentFile
+from trackmod.trackers.xm.spec.identity import INSTRUMENT_EXTENSION as XI_EXTENSION
 
 from midi2tracker.midi.events import MidiSong, NoteEvent, TempoEvent
 from midi2tracker.spec import DEFAULT_MICROSECONDS_PER_BEAT, SUSTAIN_CONTROLLER
@@ -99,6 +106,36 @@ def instrument_name(name: str, index: int) -> str:
     return f"{name} {index}" if name else name
 
 
+def sampled_waveform(name: str, gain: int) -> Sample:
+    """The one waveform a built instrument's keys reach, reserved at full volume."""
+    return Sample(name=name, pcm=np.zeros(SAMPLE_FRAMES), rate=SAMPLE_RATE, volume=MAX_VOLUME, gain=gain)
+
+
+def _impulse_tracker_instrument(unit: InstrumentUnit) -> InstrumentFile:
+    return ITInstrumentFile.from_unit(unit, compliance=Compliance.CANONICAL)
+
+
+def _fast_tracker_instrument(unit: InstrumentUnit) -> InstrumentFile:
+    return XMInstrumentFile.from_unit(unit, compliance=Compliance.CANONICAL)
+
+
+INSTRUMENT_WRITERS: Final[Mapping[str, Callable[[InstrumentUnit], InstrumentFile]]] = {
+    ITI_EXTENSION: _impulse_tracker_instrument,
+    XI_EXTENSION: _fast_tracker_instrument,
+}
+
+
+def standalone_instrument(path: Path, *, keys: range = SAMPLED_KEYS, name: str = "Sampled") -> Path:
+    """One instrument stored on its own, in whichever format the path's suffix names.
+
+    This is what a producer ships when the instrument rather than a module is the product, and a bank
+    reads it the same way it reads an instrument out of a module.
+    """
+    unit = InstrumentUnit(instrument=sampled_instrument(name, keys), samples=(sampled_waveform(name, MAX_VOLUME),))
+    INSTRUMENT_WRITERS[path.suffix](unit).save(path)
+    return path
+
+
 def instrument_file(
     path: Path,
     *,
@@ -108,7 +145,7 @@ def instrument_file(
     gain: int = MAX_VOLUME,
 ) -> Path:
     """A module holding sampled instruments, which is what a bank reads its layers out of."""
-    sample = Sample(name=name, pcm=np.zeros(SAMPLE_FRAMES), rate=SAMPLE_RATE, volume=MAX_VOLUME, gain=gain)
+    sample = sampled_waveform(name, gain)
     song = Song(
         name=name,
         channels=2,
