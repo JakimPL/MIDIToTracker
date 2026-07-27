@@ -24,6 +24,7 @@ class Converted:
     module: TrackerModule
     midi: MidiSong
     grid: RowGrid
+    bank: Bank
     conversion: Conversion
 
     @property
@@ -85,5 +86,6 @@ def convert(path: Path | str, config: Config) -> Converted:
         module=target.bind(conversion.song),
         midi=midi,
         grid=grid,
+        bank=bank,
         conversion=conversion,
     )

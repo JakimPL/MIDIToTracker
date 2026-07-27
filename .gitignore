@@ -2,6 +2,7 @@ __marimo__/
 __pycache__/
 __pycache__/
 .claude/
+.coverage
 .github/
 .idea/
 .ipynb_checkpoints/

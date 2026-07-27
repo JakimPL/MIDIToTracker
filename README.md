@@ -31,7 +31,9 @@ uv run midi2tracker song.mid --instrument-file Piano/module.it
 
 The instrument is carried over as it was produced — its keymap, samples, gains and envelopes all as
 stated — and a `velocity_map.json` sitting beside it is picked up, so each velocity sounds at the volume
-it was measured at. `--bank` reads a manifest naming several instruments and the notes each one answers.
+it was measured at. [`OptiSample`](https://github.com/JakimPL/OptiSample) writes both files; `--bank`
+reads a manifest naming several instruments and the notes each one answers.
+[`docs/bank.md`](docs/bank.md) states the manifest in full.
 
 Naming no instrument writes one **empty slot** with a keymap sending every key to it. Open the file in a
 tracker, drop a waveform into that slot, and the piece plays — the volume envelope holds while a key is
@@ -99,6 +101,9 @@ Every pass states what it needs in terms both formats share and asks a `TrackerT
 so adding a format means adding its arms there. Two ceilings shape most of the decisions, and both come
 from the format rather than from taste: a tempo effect's parameter is one byte, and a note delay is one
 nibble — so a row divided into more than sixteen ticks would have positions no cell could name.
+
+[`docs/bank.md`](docs/bank.md) covers the instrument side: the manifest, the velocity map, which slot
+each layer lands on, and which format a bank belongs to.
 
 ## Development
 

@@ -171,6 +171,7 @@ def _describe(converted: Converted, path: Path) -> str:
         f"  patterns      {len(conversion.song.patterns)}  ({conversion.rows} rows)",
         f"  channels      {conversion.song.channels}",
         f"  notes         {len(converted.midi.notes)}",
+        f"  bank          {converted.bank.name}",
         f"  instruments   {len(conversion.song.instruments)}  ({len(conversion.song.samples)} sample(s))",
         f"  speed         {converted.grid.speed} ticks/row  ({converted.grid.rows_per_beat} rows/beat)",
         f"  tempo         {tempos[0].beats_per_minute:.1f} BPM{changes} ->  tracker tempo {conversion.song.playback.tempo}",

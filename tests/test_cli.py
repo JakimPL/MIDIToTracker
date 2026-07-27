@@ -93,7 +93,7 @@ def test_an_unreadable_speed_is_refused() -> None:
 def test_the_summary_names_what_the_conversion_produced(piece: Path, tmp_path: Path, capsys) -> None:
     main([str(piece), str(tmp_path / "out.it")])
     printed = capsys.readouterr().out
-    for heading in ("file size", "patterns", "channels", "notes", "speed", "tempo"):
+    for heading in ("file size", "patterns", "channels", "notes", "bank", "instruments", "speed", "tempo"):
         assert heading in printed
 
 
@@ -112,7 +112,7 @@ def test_an_instrument_file_reaches_the_module_the_flag_writes(piece: Path, tmp_
     assert "instruments   1" in capsys.readouterr().out
 
 
-def test_a_bank_manifest_reaches_the_module_the_flag_writes(piece: Path, tmp_path: Path) -> None:
+def test_a_bank_manifest_reaches_the_module_the_flag_writes(piece: Path, tmp_path: Path, capsys) -> None:
     instrument_file(tmp_path / "piano.it")
     manifest = tmp_path / "bank.json"
     manifest.write_text(
@@ -122,6 +122,7 @@ def test_a_bank_manifest_reaches_the_module_the_flag_writes(piece: Path, tmp_pat
     output = tmp_path / "out.it"
     assert main([str(piece), str(output), "--bank", str(manifest)]) == 0
     assert ITModule.load(output).song.instruments[0].name == "Sampled 0"
+    assert "bank          One" in capsys.readouterr().out
 
 
 def test_an_instrument_that_cannot_be_read_is_reported_rather_than_raised(piece: Path, tmp_path: Path) -> None:

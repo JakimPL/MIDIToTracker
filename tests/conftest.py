@@ -90,6 +90,15 @@ def sampled_instrument(name: str, keys: range) -> Instrument:
     return Instrument(name=name, keymap=keymap)
 
 
+def instrument_name(name: str, index: int) -> str:
+    """What one instrument of a built module is called: its bank's name and its position in the file.
+
+    A bank named with the empty string builds instruments carrying no name, which is what a module
+    written by a tool that leaves the field blank holds.
+    """
+    return f"{name} {index}" if name else name
+
+
 def instrument_file(
     path: Path,
     *,
@@ -105,7 +114,7 @@ def instrument_file(
         channels=2,
         patterns=(PatternBuilder(rows=32, channels=2).build(),),
         order=OrderList.sequential(1),
-        instruments=tuple(sampled_instrument(f"{name} {index}", keys) for index in range(copies)),
+        instruments=tuple(sampled_instrument(instrument_name(name, index), keys) for index in range(copies)),
         samples=(sample,),
         playback=Playback(speed=6, tempo=125),
     )

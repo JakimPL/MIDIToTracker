@@ -20,6 +20,7 @@ from midi2tracker.instruments.velocity import (
     MeasuredVelocity,
     VelocityVolume,
 )
+from midi2tracker.spec import INSTRUMENT_NAME
 
 
 @dataclass(frozen=True)
@@ -60,8 +61,12 @@ class Bank:
     Layers are tried in order and the first whose every stated band covers the note answers it, so a bank
     reads from its most particular case to its most general. ``offset`` is where the layers sit in the
     song's instrument table; the slots below them are numbered and hold nothing.
+
+    ``name`` is what the bank calls itself, which a run prints so a summary says which instruments the
+    piece was played through.
     """
 
+    name: str
     layers: tuple[Layer, ...]
     offset: int
 
@@ -69,6 +74,7 @@ class Bank:
     def placeholder(cls, *, offset: int) -> Bank:
         """A bank of one empty slot, which is what a conversion naming no instrument plays through."""
         return cls(
+            name=INSTRUMENT_NAME,
             layers=(Layer(unit=placeholder_unit(), select=EVERY_NOTE, velocity=LinearVelocity()),),
             offset=offset,
         )
@@ -78,7 +84,8 @@ class Bank:
         """A bank of one instrument file, answering every note.
 
         A velocity map stated is read; otherwise one sitting beside the instrument is picked up, which is
-        how a producer lays its output directory out.
+        how a producer lays its output directory out. The bank goes by what the instrument calls itself,
+        falling back to the file it came out of when the instrument carries no name of its own.
 
         Raises:
             BankError: when the instrument or its velocity map cannot be read.
@@ -90,7 +97,7 @@ class Bank:
             select=EVERY_NOTE,
             velocity=_velocity(measured),
         )
-        return cls(layers=(layer,), offset=offset)
+        return cls(name=layer.unit.instrument.name or path.stem, layers=(layer,), offset=offset)
 
     @classmethod
     def from_manifest(cls, path: Path, *, offset: int) -> Bank:
@@ -101,7 +108,8 @@ class Bank:
         """
         manifest = BankManifest.load(path)
         root = path.parent
-        return cls(layers=tuple(_layer(spec, root) for spec in manifest.layers), offset=offset)
+        layers = tuple(_layer(spec, root) for spec in manifest.layers)
+        return cls(name=manifest.name, layers=layers, offset=offset)
 
     @property
     def units(self) -> tuple[InstrumentUnit, ...]:

@@ -127,6 +127,22 @@ def test_an_instrument_a_manifest_names_and_does_not_hold_is_reported(tmp_path: 
         Bank.from_manifest(path, offset=FIRST_SLOT)
 
 
+def test_a_manifest_bank_goes_by_the_name_the_document_states(tmp_path: Path) -> None:
+    instrument_file(tmp_path / "quiet.it", name="Quiet")
+    path = manifest(tmp_path / "bank.json", [{"source": {"file": "quiet.it"}}])
+    assert Bank.from_manifest(path, offset=FIRST_SLOT).name == "Bank"
+
+
+def test_one_instrument_file_goes_by_what_the_instrument_calls_itself(tmp_path: Path) -> None:
+    source = instrument_file(tmp_path / "piano.it", name="Grand")
+    assert Bank.from_instrument(source, velocity_map=None, offset=FIRST_SLOT).name == "Grand 0"
+
+
+def test_an_instrument_carrying_no_name_goes_by_the_file_it_came_out_of(tmp_path: Path) -> None:
+    source = instrument_file(tmp_path / "piano.it", name="")
+    assert Bank.from_instrument(source, velocity_map=None, offset=FIRST_SLOT).name == "piano"
+
+
 def test_the_paths_a_manifest_states_are_read_against_the_directory_it_sits_in(tmp_path: Path) -> None:
     # A producer writes the manifest beside what it produced, so a bank moves as one directory.
     inner = tmp_path / "ungrouped"
