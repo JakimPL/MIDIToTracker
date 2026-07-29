@@ -3,6 +3,7 @@ from __future__ import annotations
 from trackmod.core.notes.command import NoteCommand
 from trackmod.core.patterns.cell import Cell
 
+from midi2tracker.arrangement.mode import DEFAULT_ALLOCATION
 from midi2tracker.instruments.bank import Bank
 from midi2tracker.instruments.ensemble import Ensemble
 from midi2tracker.instruments.velocity import LinearVelocity
@@ -13,7 +14,7 @@ from midi2tracker.timing.grid import RowGrid
 from midi2tracker.timing.tempo import playable_tempo
 from midi2tracker.tracker.target import TrackerTarget
 from midi2tracker.voices.allocation import allocate
-from tests.conftest import midi_song, note
+from tests.conftest import midi_song, note, track
 
 DEFAULT_TEMPO = TempoEvent(tick=0, microseconds_per_beat=500_000)
 
@@ -28,7 +29,12 @@ def written(
     instrument: int = 0,
 ) -> Grid:
     """One song laid onto grids of a fixed height, which is what each pass is checked through."""
-    allocation = allocate(song, grid, channels=channels)
+    allocation = allocate(
+        (track(song, channels=channels),),
+        grid,
+        allocation=DEFAULT_ALLOCATION,
+        target=target,
+    )
     rows = grid.row_of(song.last_tick) + grid.rows_per_beat + 1
     grids = Grids.covering(rows, channels=channels, height=height, minimum=target.min_rows)
     ensemble = Ensemble.of((Bank.placeholder(),), reserved=instrument)

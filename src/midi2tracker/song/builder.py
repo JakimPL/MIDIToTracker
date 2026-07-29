@@ -4,8 +4,8 @@ from trackmod.core.songs.order import OrderList
 from trackmod.core.songs.playback import Playback
 from trackmod.core.songs.song import Song
 
-from midi2tracker.instruments.ensemble import Ensemble
-from midi2tracker.midi.events import MidiSong, NoteEvent, TempoEvent
+from midi2tracker.arrangement.piece import Arrangement
+from midi2tracker.midi.events import NoteEvent, TempoEvent
 from midi2tracker.song.height import pattern_height
 from midi2tracker.song.layout import Layout
 from midi2tracker.song.patterns import Grids, build_patterns
@@ -34,36 +34,30 @@ class Conversion:
         return self.song.rows
 
 
-def _channels_used(allocation: Allocation) -> int:
-    """How many channels the module declares: the ones reached, rounded up to a pair.
-
-    Tracker channels are laid out in stereo pairs, so an odd count leaves a half-populated pair that some
-    players and editors handle poorly.
-    """
-    return allocation.channels + allocation.channels % 2
-
-
 def build_song(
-    midi: MidiSong,
+    arrangement: Arrangement,
     allocation: Allocation,
     grid: RowGrid,
     layout: Layout,
     *,
     target: TrackerTarget,
-    ensemble: Ensemble,
 ) -> Conversion:
-    """The song a MIDI file becomes: its voices on channels, played through an ensemble, tempo changes and all."""
-    rows = grid.row_of(midi.last_tick) + grid.rows_per_beat * TRAILING_BEATS + 1
-    channels = _channels_used(allocation)
+    """The song a piece becomes: its voices on channels, played through its ensemble, tempo changes and all.
+
+    The piece runs as far as the last release of any of its tracks, and states the clock of the one track
+    it keeps time by.
+    """
+    rows = grid.row_of(arrangement.last_tick) + grid.rows_per_beat * TRAILING_BEATS + 1
+    channels = allocation.width
     grids = Grids.covering(
         rows,
         channels=channels,
         height=pattern_height(rows, preferred=layout.height, target=target),
         minimum=target.min_rows,
     )
-    sounding = sound(allocation, ensemble=ensemble, target=target)
-    written = build_patterns(grids, sounding, midi.tempos, grid, target=target)
-    instruments, samples = ensemble.content
+    sounding = sound(allocation, ensemble=arrangement.ensemble, target=target)
+    written = build_patterns(grids, sounding, arrangement.tempos, grid, target=target)
+    instruments, samples = arrangement.ensemble.content
     song = Song(
         name=layout.name,
         channels=channels,
@@ -74,7 +68,7 @@ def build_song(
         playback=Playback(
             speed=grid.speed,
             tempo=playable_tempo(
-                midi.tempos[0].beats_per_minute,
+                arrangement.tempos[0].beats_per_minute,
                 speed=grid.speed,
                 rows_per_beat=grid.rows_per_beat,
                 target=target,

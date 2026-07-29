@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from midi2tracker.arrangement.mode import DEFAULT_ALLOCATION
 from midi2tracker.instruments.bank import Bank
 from midi2tracker.instruments.ensemble import Ensemble
 from midi2tracker.midi.events import NoteEvent
@@ -10,7 +11,7 @@ from midi2tracker.timing.grid import RowGrid
 from midi2tracker.tracker.format import TrackerFormat
 from midi2tracker.tracker.target import TrackerTarget
 from midi2tracker.voices.allocation import allocate
-from tests.conftest import SAMPLED_KEYS, canonical, instrument_file, midi_song, note
+from tests.conftest import SAMPLED_KEYS, canonical, instrument_file, midi_song, note, track
 
 PLACEHOLDER_SLOT = 0
 NO_RESERVE = 0
@@ -18,9 +19,14 @@ NO_RESERVE = 0
 
 def sounding(grid: RowGrid, *notes: NoteEvent, bank: Bank, target: TrackerTarget) -> Sounding:
     """One song read through a bank, which is what decides the cells before any grid is touched."""
-    song = midi_song(*notes)
     ensemble = Ensemble.of((bank,), reserved=NO_RESERVE)
-    return sound(allocate(song, grid, channels=4), ensemble=ensemble, target=target)
+    allocation = allocate(
+        (track(midi_song(*notes), channels=4),),
+        grid,
+        allocation=DEFAULT_ALLOCATION,
+        target=target,
+    )
+    return sound(allocation, ensemble=ensemble, target=target)
 
 
 def test_every_note_a_bank_answers_carries_its_slot_and_volume(grid: RowGrid, target: TrackerTarget) -> None:

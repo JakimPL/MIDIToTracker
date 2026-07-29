@@ -6,12 +6,11 @@ from pathlib import Path
 from trackmod.limits.violation import Violation
 from trackmod.module.protocol import TrackerModule
 
+from midi2tracker.arrangement.build import arrange
+from midi2tracker.arrangement.piece import Arrangement
 from midi2tracker.config import Config
-from midi2tracker.instruments.bank import Bank
 from midi2tracker.instruments.ensemble import Ensemble
-from midi2tracker.instruments.store import open_bank
 from midi2tracker.midi.events import MidiSong
-from midi2tracker.midi.parser import parse_midi
 from midi2tracker.song.builder import Conversion, build_song
 from midi2tracker.song.layout import Layout
 from midi2tracker.timing.grid import RowGrid
@@ -21,13 +20,22 @@ from midi2tracker.voices.allocation import allocate
 
 @dataclass(frozen=True)
 class Converted:
-    """A converted piece: the module, the clock it plays on, and what the conversion cost."""
+    """A converted piece: the module, the arrangement it was assembled from, and what it cost."""
 
     module: TrackerModule
-    midi: MidiSong
+    arrangement: Arrangement
     grid: RowGrid
-    ensemble: Ensemble
     conversion: Conversion
+
+    @property
+    def midi(self) -> MidiSong:
+        """The track the piece keeps time by, which is the clock the grid was built against."""
+        return self.arrangement.timing
+
+    @property
+    def ensemble(self) -> Ensemble:
+        """The instrument table the module states, over every bank the piece plays through."""
+        return self.arrangement.ensemble
 
     @property
     def violations(self) -> tuple[Violation, ...]:
@@ -55,48 +63,23 @@ def row_grid(midi: MidiSong, config: Config) -> RowGrid:
     return RowGrid(pulses_per_beat=midi.pulses_per_beat, rows_per_beat=config.rows_per_beat, speed=speed)
 
 
-def instrument_bank(config: Config) -> Bank:
-    """The bank a conversion plays through, from whichever of the settings names it.
-
-    Raises:
-        BankError: when the bank, an instrument, or a velocity map cannot be read.
-    """
-    if config.bank is not None:
-        return Bank.from_store(open_bank(config.bank))
-
-    if config.instrument_file is not None:
-        return Bank.from_instrument(config.instrument_file, velocity_map=config.velocity_map)
-
-    return Bank.placeholder()
-
-
-def instrument_ensemble(config: Config) -> Ensemble:
-    """The instrument table a conversion writes: its bank, placed on the slot the settings start it from.
-
-    Raises:
-        BankError: when the bank, an instrument, or a velocity map cannot be read.
-    """
-    return Ensemble.of((instrument_bank(config),), reserved=config.slot)
-
-
 def convert(path: Path | str, config: Config) -> Converted:
-    """Convert the MIDI file at ``path`` into a module under ``config``.
+    """Convert the piece at ``path`` into a module under ``config``.
 
     Raises:
-        BankError: when the instruments the settings name cannot be read.
+        ArrangementError: when the arrangement, or a MIDI file it names, cannot be read.
+        BankError: when the instruments the piece names cannot be read.
+        AllocationError: when the piece reaches more channels than the format plays.
     """
     target = config.target
-    ensemble = instrument_ensemble(config)
-    parsed = parse_midi(path)
-    midi = parsed if config.tempo is None else parsed.starting_at(config.tempo)
-    grid = row_grid(midi, config)
-    allocation = allocate(midi, grid, channels=config.channels)
-    layout = Layout(height=config.pattern_rows, name=Path(path).stem)
-    conversion = build_song(midi, allocation, grid, layout, target=target, ensemble=ensemble)
+    arrangement = arrange(Path(path), config)
+    grid = row_grid(arrangement.timing, config)
+    allocation = allocate(arrangement.tracks, grid, allocation=arrangement.allocation, target=target)
+    layout = Layout(height=config.pattern_rows, name=arrangement.name)
+    conversion = build_song(arrangement, allocation, grid, layout, target=target)
     return Converted(
         module=target.bind(conversion.song),
-        midi=midi,
+        arrangement=arrangement,
         grid=grid,
-        ensemble=ensemble,
         conversion=conversion,
     )

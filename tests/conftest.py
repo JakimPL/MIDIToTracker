@@ -27,6 +27,8 @@ from trackmod.trackers.it.spec.identity import INSTRUMENT_EXTENSION as ITI_EXTEN
 from trackmod.trackers.xm.instrument_file import XMInstrumentFile
 from trackmod.trackers.xm.spec.identity import INSTRUMENT_EXTENSION as XI_EXTENSION
 
+from midi2tracker.arrangement.track import Track
+from midi2tracker.instruments.bank import Bank
 from midi2tracker.instruments.manifest import MANIFEST_VERSION
 from midi2tracker.instruments.store import MANIFEST_NAME
 from midi2tracker.midi.events import MidiSong, NoteEvent, TempoEvent
@@ -56,6 +58,15 @@ def midi_song(*notes: NoteEvent, tempos: tuple[TempoEvent, ...] | None = None) -
     """A parsed song built directly, for the passes that run downstream of the file."""
     opening = TempoEvent(tick=0, microseconds_per_beat=DEFAULT_MICROSECONDS_PER_BEAT)
     return MidiSong(pulses_per_beat=PULSES, notes=notes, tempos=tempos or (opening,))
+
+
+def track(song: MidiSong, *, channels: int, name: str = "Track") -> Track:
+    """One track of an arrangement, playing through the slot a tracker fills in by hand.
+
+    The passes below the arrangement read tracks rather than files, so this is what a song built in
+    memory becomes before it is allocated.
+    """
+    return Track(name=name, midi=song, bank=Bank.placeholder(), channels=channels)
 
 
 def write_midi(path: Path, messages: list[tuple[mido.BaseMessage, int]], *, pulses: int = PULSES) -> Path:

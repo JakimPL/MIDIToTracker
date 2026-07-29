@@ -150,6 +150,27 @@ def test_an_instrument_that_cannot_be_read_is_reported_rather_than_raised(piece:
         main([str(piece), str(tmp_path / "out.it"), "--instrument-file", str(tmp_path / "absent.it")])
 
 
+def test_a_midi_file_that_cannot_be_read_is_reported_rather_than_raised(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit, match="cannot read this piece"):
+        main([str(tmp_path / "absent.mid"), str(tmp_path / "out.it")])
+
+
+def test_a_piece_spreading_past_the_format_is_reported_before_anything_is_written(tmp_path: Path) -> None:
+    # Two stems of twenty voices each reach forty channels where FastTracker 2 plays thirty-two, and the
+    # width follows from the piece rather than from any one setting, so it is caught where it is derived.
+    chord = [message for pitch in range(48, 68) for message in (press(pitch, 0), lift(pitch, 96))]
+    for stem in ("bass.mid", "brass.mid"):
+        write_midi(tmp_path / stem, chord)
+
+    arrangement = tmp_path / "song.yaml"
+    arrangement.write_text("tracks:\n  bass.mid:\n  brass.mid:\n", encoding="utf-8")
+    output = tmp_path / "out.xm"
+    with pytest.raises(SystemExit, match="cannot lay this piece out"):
+        main([str(arrangement), str(output), "--format", "xm", "--channels", "20"])
+
+    assert not output.exists()
+
+
 def test_the_notes_a_run_leaves_out_are_named_in_the_summary(tmp_path: Path, capsys) -> None:
     source = instrument_file(tmp_path / "piano.it")
     path = write_midi(tmp_path / "wide.mid", [press(60, 0), lift(60, 96), press(24, 96), lift(24, 192)])

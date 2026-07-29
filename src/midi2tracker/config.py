@@ -7,6 +7,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from trackmod.limits.compliance import Compliance
 
+from midi2tracker.arrangement.mode import DEFAULT_ALLOCATION, ChannelAllocation
 from midi2tracker.instruments.naming import (
     a_velocity_map_reads_an_instrument,
     one_source_of_instruments,
@@ -37,6 +38,9 @@ class Config(BaseModel):
     ``instrument_file`` for one, with ``instrument`` giving the slot they start on. Naming neither writes
     the reserved slot a tracker fills in by hand.
 
+    ``channels`` is the ceiling one track allocates within, which an arrangement states per track and
+    this states for the rest, and ``allocation`` is how the tracks of a piece share the channel table.
+
     Every file a conversion reads is one the settings name. An ``instrument_file`` sounds the dynamics it
     was measured with when a ``velocity_map`` states them and reads velocity evenly otherwise, so what a
     run plays follows from what it was told rather than from what happens to sit beside a file.
@@ -48,6 +52,7 @@ class Config(BaseModel):
     compliance: Compliance = DEFAULT_COMPLIANCE
     rows_per_beat: int = Field(default=DEFAULT_ROWS_PER_BEAT, ge=1)
     channels: int = Field(default=DEFAULT_CHANNELS, ge=1)
+    allocation: ChannelAllocation = DEFAULT_ALLOCATION
     pattern_rows: int = Field(default=DEFAULT_PATTERN_ROWS, ge=1)
     speed: int = Field(default=AUTOMATIC_SPEED, ge=AUTOMATIC_SPEED)
     tempo: float | None = Field(default=None, gt=0)

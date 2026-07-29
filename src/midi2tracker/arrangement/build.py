@@ -5,7 +5,6 @@ from pathlib import Path
 
 from midi2tracker.arrangement.document import ArrangementDocument, arranges
 from midi2tracker.arrangement.error import ArrangementError
-from midi2tracker.arrangement.mode import DEFAULT_ALLOCATION
 from midi2tracker.arrangement.piece import Arrangement
 from midi2tracker.arrangement.spec import TrackSpec
 from midi2tracker.arrangement.track import Track
@@ -115,7 +114,7 @@ def build(document: ArrangementDocument, *, root: Path, config: Config) -> Arran
         tracks=tracks,
         ensemble=Ensemble.of(banks, reserved=config.slot),
         timekeeper=timekeeper,
-        allocation=document.allocation or DEFAULT_ALLOCATION,
+        allocation=document.allocation or config.allocation,
     )
 
 

@@ -8,11 +8,13 @@ from pydantic_core import ErrorDetails
 from trackmod.limits.compliance import Compliance
 
 from midi2tracker import __version__
+from midi2tracker.arrangement.error import ArrangementError
 from midi2tracker.config import AUTOMATIC_SPEED, Config, load
 from midi2tracker.convert import Converted, convert
 from midi2tracker.instruments.error import BankError
 from midi2tracker.midi.events import NoteEvent
 from midi2tracker.tracker.format import TrackerFormat
+from midi2tracker.voices.error import AllocationError
 
 STATED_PREFIX: Final = "Value error, "  # pydantic prepends this to the message a validator raises
 
@@ -249,8 +251,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     output = args.output
     try:
         converted = convert(args.input, config)
+    except ArrangementError as unreadable:
+        raise SystemExit(f"cannot read this piece:\n  {unreadable}") from unreadable
     except BankError as unreadable:
         raise SystemExit(f"cannot assemble the bank:\n  {unreadable}") from unreadable
+    except AllocationError as unplayable:
+        raise SystemExit(f"cannot lay this piece out:\n  {unplayable}") from unplayable
 
     if not converted.writable:
         raise SystemExit(_refuse(converted))
