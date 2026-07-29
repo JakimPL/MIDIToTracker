@@ -7,6 +7,10 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from trackmod.limits.compliance import Compliance
 
+from midi2tracker.instruments.naming import (
+    a_velocity_map_reads_an_instrument,
+    one_source_of_instruments,
+)
 from midi2tracker.timing.speed import speed_bound
 from midi2tracker.tracker.format import TrackerFormat
 from midi2tracker.tracker.target import TrackerTarget
@@ -29,9 +33,13 @@ class Config(BaseModel):
     differently — Impulse Tracker plays 64 channels of 200-row patterns where FastTracker 2 plays 32 of
     256 — so each one is graded once the format is known.
 
-    What the notes play through is named once: a ``bank`` manifest for several instruments, or an
+    What the notes play through is named once: a ``bank`` for several instruments, or an
     ``instrument_file`` for one, with ``instrument`` giving the slot they start on. Naming neither writes
     the reserved slot a tracker fills in by hand.
+
+    Every file a conversion reads is one the settings name. An ``instrument_file`` sounds the dynamics it
+    was measured with when a ``velocity_map`` states them and reads velocity evenly otherwise, so what a
+    run plays follows from what it was told rather than from what happens to sit beside a file.
     """
 
     model_config = ConfigDict(frozen=True, extra="ignore")
@@ -50,12 +58,11 @@ class Config(BaseModel):
 
     @model_validator(mode="after")
     def _names_one_source_of_instruments(self) -> Config:
-        if self.bank is not None and self.instrument_file is not None:
-            raise ValueError("bank and instrument_file each name what the notes play through, so state one")
-
-        if self.velocity_map is not None and self.instrument_file is None:
-            raise ValueError("velocity_map reads an instrument_file, so state which file it belongs to")
-
+        one_source_of_instruments({"bank": self.bank is not None, "instrument_file": self.instrument_file is not None})
+        a_velocity_map_reads_an_instrument(
+            velocity_map=self.velocity_map is not None,
+            instrument_file=self.instrument_file is not None,
+        )
         return self
 
     @model_validator(mode="after")

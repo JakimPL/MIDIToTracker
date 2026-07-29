@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from typing import Final
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from midi2tracker.spec import MAX_PITCH, MAX_VELOCITY, MICROSECONDS_PER_MINUTE
 
 FROZEN = ConfigDict(frozen=True, extra="forbid")
+ONE_TO_ONE: Final = 1  # the factor a rescaling to the resolution a song already counts in works out as
 
 
 class NoteEvent(BaseModel):
@@ -79,3 +82,33 @@ class MidiSong(BaseModel):
         """The same song with its opening tempo replaced, which is what a tempo override asks for."""
         head = TempoEvent.at_beats_per_minute(self.tempos[0].tick, beats_per_minute)
         return self.model_copy(update={"tempos": (head, *self.tempos[1:])})
+
+    def rescaled(self, pulses_per_beat: int) -> MidiSong:
+        """The same music counted against a finer resolution, which is how several files share one scale.
+
+        Every tick is multiplied by a whole factor, so each event lands on the beat it already landed on
+        and the music is stated exactly as it was written.
+
+        Raises:
+            ValueError: when the resolution asked for is no whole multiple of this song's own.
+        """
+        if pulses_per_beat % self.pulses_per_beat:
+            raise ValueError(
+                f"{pulses_per_beat} pulses a beat is no multiple of the {self.pulses_per_beat} this song "
+                "counts in, so its ticks would land between beats"
+            )
+
+        factor = pulses_per_beat // self.pulses_per_beat
+        if factor == ONE_TO_ONE:
+            return self
+
+        return self.model_copy(
+            update={
+                "pulses_per_beat": pulses_per_beat,
+                "notes": tuple(
+                    note.model_copy(update={"tick_on": note.tick_on * factor, "tick_off": note.tick_off * factor})
+                    for note in self.notes
+                ),
+                "tempos": tuple(tempo.model_copy(update={"tick": tempo.tick * factor}) for tempo in self.tempos),
+            }
+        )

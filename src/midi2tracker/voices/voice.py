@@ -5,7 +5,10 @@ from midi2tracker.timing.placement import Placement
 
 
 class Voice(BaseModel):
-    """A note bound to a channel: where it starts, how far into that row, and where it releases.
+    """A note bound to a channel: which track it came from, where it starts, and where it releases.
+
+    ``track`` is the piece the note was read out of, which is what says whose bank answers it once the
+    tracks share one instrument table.
 
     The release carries no sub-row placement, because a key-off occupies a cell of its own and the note
     delay a cell can hold belongs to the note that starts there.
@@ -14,6 +17,7 @@ class Voice(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     note: NoteEvent
+    track: int = Field(ge=0)
     channel: int = Field(ge=0)
     start: Placement
     release_row: int = Field(ge=0)

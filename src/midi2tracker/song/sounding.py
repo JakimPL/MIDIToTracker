@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from midi2tracker.instruments.bank import Bank, Voicing
+from midi2tracker.instruments.bank import Voicing
+from midi2tracker.instruments.ensemble import Ensemble
 from midi2tracker.instruments.expression import Expression
 from midi2tracker.midi.events import NoteEvent
 from midi2tracker.tracker.target import TrackerTarget
@@ -32,8 +33,12 @@ class Sounding:
     silent: tuple[NoteEvent, ...]
 
 
-def sound(allocation: Allocation, *, bank: Bank, target: TrackerTarget) -> Sounding:
-    """Which of a piece's voices the module states, and on what."""
+def sound(allocation: Allocation, *, ensemble: Ensemble, target: TrackerTarget) -> Sounding:
+    """Which of a piece's voices the module states, and on what.
+
+    A voice carries the track it came from, so the bank that answers it is the one that track plays
+    through.
+    """
     sounded: list[Sounded] = []
     unplayable: list[NoteEvent] = []
     silent: list[NoteEvent] = []
@@ -42,7 +47,7 @@ def sound(allocation: Allocation, *, bank: Bank, target: TrackerTarget) -> Sound
             unplayable.append(voice.note)
             continue
 
-        voicing = bank.voicing(target.key(voice.note.pitch), Expression.of(voice.note))
+        voicing = ensemble.voicing(voice.track, target.key(voice.note.pitch), Expression.of(voice.note))
         if voicing is None:
             silent.append(voice.note)
             continue

@@ -10,7 +10,6 @@ from trackmod.spec.levels import MAX_VOLUME
 from midi2tracker.instruments.error import BankError
 from midi2tracker.spec import MAX_VELOCITY
 
-VELOCITY_MAP_NAME: Final = "velocity_map.json"
 VELOCITY_COUNT: Final = MAX_VELOCITY + 1
 
 Level = Annotated[int, Field(ge=0, le=MAX_VOLUME)]

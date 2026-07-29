@@ -103,7 +103,7 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
         "--bank",
         type=Path,
         default=defaults.bank,
-        help="a bank manifest naming the instruments the notes play through",
+        help="a bank container, or a manifest, naming the instruments the notes play through",
     )
     parser.add_argument(
         "--instrument-file",
@@ -115,7 +115,7 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
         "--velocity-map",
         type=Path,
         default=defaults.velocity_map,
-        help="the measured velocity map an instrument file is read with (default: one beside it)",
+        help="the measured velocity map an instrument file is read with; stating none reads velocity evenly",
     )
     parser.add_argument(
         "--version",
@@ -169,7 +169,7 @@ def _describe(converted: Converted, path: Path) -> str:
         f"  patterns      {len(conversion.song.patterns)}  ({conversion.rows} rows)",
         f"  channels      {conversion.song.channels}",
         f"  notes         {len(converted.midi.notes)}",
-        f"  bank          {converted.bank.name}",
+        f"  bank          {', '.join(bank.name for bank in converted.ensemble.banks)}",
         f"  instruments   {len(conversion.song.instruments)}  ({len(conversion.song.samples)} sample(s))",
         f"  speed         {converted.grid.speed} ticks/row  ({converted.grid.rows_per_beat} rows/beat)",
         f"  tempo         {tempos[0].beats_per_minute:.1f} BPM{changes} ->  tracker tempo {conversion.song.playback.tempo}",

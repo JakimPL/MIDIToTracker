@@ -30,12 +30,14 @@ uv run midi2tracker song.mid --instrument-file Piano/module.it
 ```
 
 The instrument is carried over as it was produced — its keymap, samples, gains and envelopes all as
-stated — and a `velocity_map.json` sitting beside it is picked up, so each velocity sounds at the volume
+stated — and `--velocity-map` names the table it was measured with, so each velocity sounds at the volume
 it was measured at. A whole module and a standalone instrument (`.it`, `.xm`, `.iti`, `.xi`) are read the
 same way, so the flag takes whichever container a producer ships.
-[`OptiSample`](https://github.com/JakimPL/OptiSample) writes both files; `--bank` reads a manifest naming
-several instruments and the notes each one answers. [`docs/bank.md`](docs/bank.md) states the manifest in
-full.
+
+`--bank` takes several instruments at once, and the notes each one answers, as a **bank**: one file
+holding the manifest, the instruments and the velocities they were measured at.
+[`OptiSample`](https://github.com/JakimPL/OptiSample) writes one; a bank spread over a directory beside
+its `bank.json` is read the same way. [`docs/bank.md`](docs/bank.md) states both in full.
 
 Naming no instrument writes one **empty slot** with a keymap sending every key to it. Open the file in a
 tracker, drop a waveform into that slot, and the piece plays — the volume envelope holds while a key is
@@ -68,9 +70,9 @@ Every knob has a flag and a `config.yaml` entry; the file supplies the defaults 
 | `speed` | ticks per row; `0` chooses the finest the piece's fastest tempo allows |
 | `tempo` | an opening BPM override; omit to read it from the file |
 | `instrument` | which slot the instruments start on |
-| `bank` | a manifest naming the instruments the notes play through, and which notes reach each one |
+| `bank` | a bank — a container, or a manifest — naming the instruments the notes play through, and which notes reach each one |
 | `instrument_file` | one instrument file every note plays through, instead of a bank |
-| `velocity_map` | the velocity map that file is read with; omit to pick up one sitting beside it |
+| `velocity_map` | the velocity map that file is read with; omit to read velocity evenly |
 
 Every count is graded against the format it is written for, because the two bound them differently:
 Impulse Tracker plays 64 channels of 200-row patterns and reaches all ten octaves, where FastTracker 2

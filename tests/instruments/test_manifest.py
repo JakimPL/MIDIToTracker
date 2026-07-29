@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import Final
 
 import pytest
 
@@ -9,47 +9,74 @@ from midi2tracker.instruments.axis import Axis
 from midi2tracker.instruments.error import BankError
 from midi2tracker.instruments.expression import Expression
 from midi2tracker.instruments.manifest import MANIFEST_VERSION, BankManifest
+from midi2tracker.instruments.velocity import VELOCITY_COUNT
+from tests.conftest import velocity_table
+
+ORIGIN: Final = "bank.json"
 
 
-def written(path: Path, document: dict[str, object]) -> Path:
-    path.write_text(json.dumps(document), encoding="utf-8")
-    return path
+def parsed(document: dict[str, object]) -> BankManifest:
+    return BankManifest.parse(json.dumps(document).encode("utf-8"), origin=ORIGIN)
 
 
-def test_the_document_a_producer_writes_reads_back_whole(tmp_path: Path) -> None:
-    manifest = BankManifest.load(
-        written(
-            tmp_path / "bank.json",
-            {
-                "version": MANIFEST_VERSION,
-                "name": "Piano",
-                "layers": [
-                    {
-                        "source": {"file": "ungrouped/module.it", "instrument": 0},
-                        "select": {"velocity": {"low": 0, "high": 127}, "pitch": {"low": 29, "high": 101}},
-                        "velocity_map": "ungrouped/velocity_map.json",
-                    }
-                ],
-            },
-        )
+def test_the_document_a_producer_writes_reads_back_whole() -> None:
+    manifest = parsed(
+        {
+            "version": MANIFEST_VERSION,
+            "name": "Piano",
+            "layers": [
+                {
+                    "source": {"file": "instruments/module.it", "instrument": 0},
+                    "select": {"velocity": {"low": 0, "high": 127}, "pitch": {"low": 29, "high": 101}},
+                    "velocity_map": velocity_table([17] * VELOCITY_COUNT),
+                }
+            ],
+        }
     )
     layer = manifest.layers[0]
     assert manifest.name == "Piano"
-    assert layer.source.file == Path("ungrouped/module.it")
-    assert layer.velocity_map == Path("ungrouped/velocity_map.json")
+    assert layer.source.file == "instruments/module.it"
+    assert layer.velocity_map is not None and layer.velocity_map.volume(100) == 17
     assert layer.select.covers(Expression(velocity=127, pitch=60))
     assert {Axis.VELOCITY, Axis.PITCH} == set(layer.select.root)
 
 
-def test_a_layer_stating_only_its_source_answers_every_note(tmp_path: Path) -> None:
+def test_a_layer_stating_only_its_source_answers_every_note() -> None:
     document = {"version": MANIFEST_VERSION, "name": "One", "layers": [{"source": {"file": "module.it"}}]}
-    layer = BankManifest.load(written(tmp_path / "bank.json", document)).layers[0]
+    layer = parsed(document).layers[0]
     assert layer.source.instrument == 0
     assert layer.velocity_map is None
     assert layer.select.covers(Expression(velocity=1, pitch=0))
 
 
-def test_an_axis_this_reader_does_not_name_is_reported(tmp_path: Path) -> None:
+def test_a_velocity_map_the_document_states_carries_its_own_measurement() -> None:
+    """A producer measures the table against the very samples the layer stores, so the two are one unit.
+
+    Stating the table in the document is what keeps a layer playing the dynamics its waveforms were
+    written for, however the bank is copied or handed on.
+    """
+    volumes = list(range(VELOCITY_COUNT // 2)) * 2
+    document = {
+        "version": MANIFEST_VERSION,
+        "name": "One",
+        "layers": [{"source": {"file": "module.it"}, "velocity_map": velocity_table(volumes)}],
+    }
+    layer = parsed(document).layers[0]
+    assert layer.velocity_map is not None
+    assert [layer.velocity_map.volume(velocity) for velocity in range(VELOCITY_COUNT)] == volumes
+
+
+def test_a_velocity_table_of_another_shape_is_reported() -> None:
+    document = {
+        "version": MANIFEST_VERSION,
+        "name": "One",
+        "layers": [{"source": {"file": "module.it"}, "velocity_map": {"volumes": [0, 1, 2]}}],
+    }
+    with pytest.raises(BankError, match="velocity_map"):
+        parsed(document)
+
+
+def test_an_axis_this_reader_does_not_name_is_reported() -> None:
     """A manifest routes on the axes stated here, so one naming another is refused rather than ignored."""
     document = {
         "version": MANIFEST_VERSION,
@@ -57,31 +84,31 @@ def test_an_axis_this_reader_does_not_name_is_reported(tmp_path: Path) -> None:
         "layers": [{"source": {"file": "module.it"}, "select": {"aftertouch": {"low": 0, "high": 63}}}],
     }
     with pytest.raises(BankError, match="aftertouch"):
-        BankManifest.load(written(tmp_path / "bank.json", document))
+        parsed(document)
 
 
-def test_a_field_a_later_producer_adds_still_loads(tmp_path: Path) -> None:
+def test_a_field_a_later_producer_adds_still_loads() -> None:
     document = {
         "version": MANIFEST_VERSION,
         "name": "One",
         "generator": "some future producer",
         "layers": [{"source": {"file": "module.it"}, "round_robin": 4}],
     }
-    assert BankManifest.load(written(tmp_path / "bank.json", document)).name == "One"
+    assert parsed(document).name == "One"
 
 
-def test_a_manifest_of_another_version_is_reported(tmp_path: Path) -> None:
+def test_a_manifest_of_another_version_is_reported() -> None:
     document = {"version": MANIFEST_VERSION + 1, "name": "One", "layers": [{"source": {"file": "module.it"}}]}
     with pytest.raises(BankError, match="version"):
-        BankManifest.load(written(tmp_path / "bank.json", document))
+        parsed(document)
 
 
-def test_a_manifest_naming_no_layer_is_reported(tmp_path: Path) -> None:
+def test_a_manifest_naming_no_layer_is_reported() -> None:
     document = {"version": MANIFEST_VERSION, "name": "One", "layers": []}
     with pytest.raises(BankError):
-        BankManifest.load(written(tmp_path / "bank.json", document))
+        parsed(document)
 
 
-def test_a_manifest_that_is_not_there_is_reported(tmp_path: Path) -> None:
-    with pytest.raises(BankError, match="does not read as a bank manifest"):
-        BankManifest.load(tmp_path / "absent.json")
+def test_the_bytes_a_manifest_could_not_be_are_reported_by_where_they_came_from() -> None:
+    with pytest.raises(BankError, match=ORIGIN):
+        BankManifest.parse(b"not a document", origin=ORIGIN)

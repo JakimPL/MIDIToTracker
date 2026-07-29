@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import zipfile
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Final
@@ -26,6 +27,8 @@ from trackmod.trackers.it.spec.identity import INSTRUMENT_EXTENSION as ITI_EXTEN
 from trackmod.trackers.xm.instrument_file import XMInstrumentFile
 from trackmod.trackers.xm.spec.identity import INSTRUMENT_EXTENSION as XI_EXTENSION
 
+from midi2tracker.instruments.manifest import MANIFEST_VERSION
+from midi2tracker.instruments.store import MANIFEST_NAME
 from midi2tracker.midi.events import MidiSong, NoteEvent, TempoEvent
 from midi2tracker.spec import DEFAULT_MICROSECONDS_PER_BEAT, SUSTAIN_CONTROLLER
 from midi2tracker.timing.grid import RowGrid
@@ -83,6 +86,11 @@ def lift(pitch: int, tick: int) -> tuple[mido.Message, int]:
 
 def pedal(value: int, tick: int) -> tuple[mido.Message, int]:
     return mido.Message("control_change", control=SUSTAIN_CONTROLLER, value=value), tick
+
+
+def tempo(beats_per_minute: float, tick: int) -> tuple[mido.MetaMessage, int]:
+    """A tempo change as a file states it, so a test writes the clock its tracks are read against."""
+    return mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(beats_per_minute)), tick
 
 
 def sampled_instrument(name: str, keys: range) -> Instrument:
@@ -159,14 +167,49 @@ def instrument_file(
     return path
 
 
-def velocity_map_file(path: Path, volumes: Sequence[int]) -> Path:
-    """A velocity map as a producer writes it, carrying its measurement alongside the table."""
-    document = {
+def velocity_table(volumes: Sequence[int]) -> dict[str, object]:
+    """A velocity map as a producer states it, carrying its measurement alongside the table."""
+    return {
         "reference_volume": max(volumes),
         "anchors": [{"velocity": 64, "loudness_lufs": -20.0, "volume": volumes[64]}],
         "volumes": list(volumes),
     }
-    path.write_text(json.dumps(document), encoding="utf-8")
+
+
+def velocity_map_file(path: Path, volumes: Sequence[int]) -> Path:
+    """A velocity map on its own, which is what the one-instrument settings name."""
+    path.write_text(json.dumps(velocity_table(volumes)), encoding="utf-8")
+    return path
+
+
+def bank_document(layers: Sequence[Mapping[str, object]], *, name: str = "Bank") -> dict[str, object]:
+    """The manifest describing a bank, at the version this reads."""
+    return {"version": MANIFEST_VERSION, "name": name, "layers": list(layers)}
+
+
+def bank_manifest(path: Path, layers: Sequence[Mapping[str, object]], *, name: str = "Bank") -> Path:
+    """A bank spread over a directory: the manifest, with the instruments it names beside it."""
+    path.write_text(json.dumps(bank_document(layers, name=name)), encoding="utf-8")
+    return path
+
+
+def bank_container(
+    path: Path,
+    layers: Sequence[Mapping[str, object]],
+    entries: Mapping[str, Path],
+    *,
+    name: str = "Bank",
+) -> Path:
+    """A bank shipped as one archive, which is the form a producer hands one on in.
+
+    This is the writer's side of the contract stated by hand: what a producer has to lay down for a
+    conversion to read a bank out of a single file.
+    """
+    with zipfile.ZipFile(path, "w") as container:
+        container.writestr(MANIFEST_NAME, json.dumps(bank_document(layers, name=name)))
+        for entry, source in entries.items():
+            container.write(source, entry)
+
     return path
 
 

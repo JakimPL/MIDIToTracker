@@ -14,17 +14,39 @@ One instrument covering the whole keyboard is a flag:
 uv run midi2tracker song.mid --instrument-file Piano/module.it
 ```
 
-Several instruments, each answering its own notes, is a manifest:
+Several instruments, each answering its own notes, is a bank:
 
 ```
-uv run midi2tracker song.mid --bank Piano/bank.json
+uv run midi2tracker song.mid --bank Piano.bank
 ```
 
-Both build the same object. The flag is the manifest's single-layer case with its paths already known,
-so a bank grows from one to many by writing a document rather than by taking another code path.
+Both build the same object. The flag is the bank's single-layer case with its files already named, so a
+bank grows from one to many by writing a document rather than by taking another code path.
 
 Naming neither writes one empty slot with a keymap sending every key to it, which is a module to open in
 a tracker and drop a waveform into.
+
+## How a bank is shipped
+
+A bank is a manifest and the instruments it names. Those travel together in either of two packagings, and
+`--bank` reads both:
+
+| Named | Read as | Where its entries are |
+|---|---|---|
+| `Piano.bank` | one archive holding the manifest and every instrument | inside the archive |
+| `Piano/bank.json` | a manifest with its instruments beside it | the directory the manifest sits in |
+
+A path ending in `.json` is a manifest read where it sits; anything else is the archive carrying both.
+The archive is a zip, so its contents are inspectable with any tool that opens one.
+
+The archive is the form a bank travels in, and the reason is calibration rather than tidiness. A producer
+derives what it stores from what it measured — the level a waveform is stored at follows from the
+velocity map written for it — so the instruments and the map are one unit that only means anything
+together. Shipping them as one file is what stops half of that unit from being copied, renamed or
+updated on its own.
+
+Everything above the store reads a bank the same way whichever packaging it was handed, because both
+answer one interface: `BankStore.manifest()` and `BankStore.read(name)` in `instruments/store.py`.
 
 ## Instrument files
 
@@ -68,25 +90,29 @@ at other positions — stays where it is.
 
 ## The manifest
 
-JSON, with every path read against the directory the manifest sits in:
+JSON, stored as the bank's `bank.json`, naming each instrument as an entry of the bank it belongs to:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "name": "Piano",
   "layers": [
     {
-      "source": {"file": "ungrouped/module.it", "instrument": 0},
+      "source": {"file": "instruments/quiet.iti", "instrument": 0},
       "select": {"velocity": {"low": 0, "high": 63}},
-      "velocity_map": "ungrouped/velocity_map.json"
+      "velocity_map": {"volumes": [2, 2, 3, "…", 64]}
     },
     {
-      "source": {"file": "loud/module.it"},
-      "velocity_map": "loud/velocity_map.json"
+      "source": {"file": "instruments/loud.iti"},
+      "velocity_map": {"volumes": [4, 5, 5, "…", 64]}
     }
   ]
 }
 ```
+
+An entry name is read against the bank rather than against a directory, so one document describes the
+archive and the loose directory alike: inside an archive it names an entry, and beside a manifest it
+names a file in that directory.
 
 Every field is read, and this is what each one decides:
 
@@ -95,10 +121,10 @@ Every field is read, and this is what each one decides:
 | `version` | The shape this document is written in; a manifest stating another version is refused |
 | `name` | What the bank is called; a run prints it, so a summary says what the piece played through |
 | `layers` | The instruments, in the order they are tried; at least one |
-| `layers[].source.file` | The file the instrument is read out of, relative to the manifest |
-| `layers[].source.instrument` | Which instrument of that file, counted from zero; `0` when omitted, which is what a standalone instrument file holds |
+| `layers[].source.file` | The entry of the bank the instrument is read out of |
+| `layers[].source.instrument` | Which instrument of that entry, counted from zero; `0` when omitted, which is what a standalone instrument file holds |
 | `layers[].select` | Which notes this layer answers; omitting it answers every note |
-| `layers[].velocity_map` | The map this layer's velocities were measured with; omitting it reads them evenly |
+| `layers[].velocity_map` | The table this layer's velocities were measured as, stated inline; omitting it reads them evenly |
 
 Fields outside this shape are ignored, so a manifest written by a later producer still loads and
 contributes what it shares — the same rule `Config.load` follows for the settings file.
@@ -170,15 +196,18 @@ A velocity map states the volume column each of the 128 MIDI velocities sounds a
 `volumes` is what is read — exactly 128 entries, each in `0..64`, one per MIDI velocity. The rest of the
 document is the measurement it was derived from: `anchors` records the loudness a producer measured at
 the velocities it rendered, and `reference_volume` the level those measurements were taken against. The
-table already states the conclusion, so reading it alone lets one file both drive a conversion and
-document how its numbers were arrived at.
+table already states the conclusion, so reading it alone lets the same content both drive a conversion
+and document how its numbers were arrived at.
 
 The map belongs to a layer rather than to the bank, because each layer's samples were measured against
-their own. A layer stating no map reads velocity evenly, `round(velocity * 64 / 127)`, which is the
-right reading where a waveform's own level already stands for the velocity it was recorded at.
+their own. Inside a bank it is stated inline, in the layer that was measured with it. A layer stating no
+map reads velocity evenly, `round(velocity * 64 / 127)`, which is the right reading where a waveform's
+own level already stands for the velocity it was recorded at.
 
-`--instrument-file` picks up a `velocity_map.json` sitting beside the instrument, which is how a producer
-lays its output directory out. `--velocity-map` names one explicitly.
+`--instrument-file` names one instrument, and `--velocity-map` names the map it is read with, as the same
+document above written to a file of its own. Naming an instrument alone reads velocity evenly. Every file
+a run reads is a file it was pointed at, so what a conversion plays follows from its settings rather than
+from what happens to sit beside a path.
 
 A measured map records loudness, so its numbers rise and fall as the recordings do: velocities 50, 60,
 70, 75, 80, 90 and 100 of the verified `Piano` sound at 7, 20, 13, 26, 26, 25 and 21. Those are the
@@ -255,15 +284,13 @@ copies, so a waveform two layers share costs one slot there and two in an `.xm`.
 instrument directories holds
 
 ```
-bank.json            the manifest naming every instrument below and the notes it answers
-module.it            the instrument and the samples its keymap reaches
-velocity_map.json    the measured volume for each of the 128 velocities
+Piano.bank           the manifest, the instruments it names and the velocities they were measured at
 instruments/         each written instrument on its own, named by the keys and dynamics it answers
 ```
 
-`--bank bank.json` takes the directory whole, and `--instrument-file module.it` takes the module alone
-with the map beside it picked up. An `.iti` or `.xi` beside a `velocity_map.json` is read exactly the
-same way, so a producer chooses the container and the flag stays one flag. The verified `Piano` routes
+`--bank Piano.bank` takes the bank whole, and `--instrument-file instruments/<one>.iti` takes a single
+voice out of it — with `--velocity-map` where that voice was measured. A producer chooses the container
+and the flag stays one flag. The verified `Piano` routes
 61 keys between MIDI 29 and 101 onto 61 samples, recorded at 6–16 kHz in eight and sixteen bits, each
 staged with its own gain — 524 KB of module that plays with no tracker opened.
 

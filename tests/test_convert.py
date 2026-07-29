@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -16,8 +15,7 @@ from trackmod.trackers.xm.module import XMModule
 from midi2tracker.config import Config
 from midi2tracker.convert import convert, row_grid
 from midi2tracker.instruments.error import BankError
-from midi2tracker.instruments.manifest import MANIFEST_VERSION
-from midi2tracker.instruments.source import load_unit
+from midi2tracker.instruments.source import read_units, select_unit
 from midi2tracker.instruments.velocity import VELOCITY_COUNT
 from midi2tracker.midi.parser import parse_midi
 from midi2tracker.timing.speed import speed_bound
@@ -25,6 +23,7 @@ from midi2tracker.tracker.format import TrackerFormat
 from midi2tracker.tracker.target import TrackerTarget
 from tests.conftest import (
     SAMPLE_FRAMES,
+    bank_manifest,
     instrument_file,
     lift,
     pedal,
@@ -129,19 +128,28 @@ def test_an_instrument_file_is_what_the_notes_play_through(piece: Path, tmp_path
 def test_the_instrument_reaches_the_written_file_verbatim(piece: Path, tmp_path: Path) -> None:
     # Taking an instrument as it was produced is the contract, so the keymap and every sample setting
     # have to survive the trip out to disk and back.
-    source = load_unit(instrument_file(tmp_path / "piano.it"), 0)
+    source = select_unit(read_units(instrument_file(tmp_path / "piano.it")), 0, origin="piano.it")
     output = convert(piece, Config(instrument_file=tmp_path / "piano.it")).save(tmp_path / "out.it")
     recovered = extract(ITModule.load(output).song, 0)
     assert recovered.instrument.keymap == source.instrument.keymap
     assert recovered.samples == source.samples
 
 
-def test_a_velocity_map_beside_the_instrument_decides_the_volume_column(piece: Path, tmp_path: Path) -> None:
+def test_a_stated_velocity_map_decides_the_volume_column(piece: Path, tmp_path: Path) -> None:
+    instrument_file(tmp_path / "piano.it")
+    stated = velocity_map_file(tmp_path / "measured.json", [9] * VELOCITY_COUNT)
+    converted = convert(piece, Config(instrument_file=tmp_path / "piano.it", velocity_map=stated))
+    volumes = {int(volume) for pattern in converted.conversion.song.patterns for volume in pattern.volume.flat}
+    assert 9 in volumes
+
+
+def test_a_velocity_map_the_settings_never_named_leaves_the_dynamics_even(piece: Path, tmp_path: Path) -> None:
+    # A file the run was not pointed at changes nothing, so what a conversion plays is what it was told.
     instrument_file(tmp_path / "piano.it")
     velocity_map_file(tmp_path / "velocity_map.json", [9] * VELOCITY_COUNT)
     converted = convert(piece, Config(instrument_file=tmp_path / "piano.it"))
     volumes = {int(volume) for pattern in converted.conversion.song.patterns for volume in pattern.volume.flat}
-    assert 9 in volumes
+    assert 9 not in volumes
 
 
 def test_a_note_the_instrument_was_never_sampled_over_is_reported(tmp_path: Path, target: TrackerTarget) -> None:
@@ -165,19 +173,13 @@ def test_a_note_past_the_keys_the_format_numbers_is_reported(tmp_path: Path) -> 
 def test_a_bank_manifest_puts_each_layer_on_a_slot_of_its_own(piece: Path, tmp_path: Path) -> None:
     instrument_file(tmp_path / "quiet.it", name="Quiet")
     instrument_file(tmp_path / "loud.it", name="Loud")
-    manifest = tmp_path / "bank.json"
-    manifest.write_text(
-        json.dumps(
-            {
-                "version": MANIFEST_VERSION,
-                "name": "Layered",
-                "layers": [
-                    {"source": {"file": "quiet.it"}, "select": {"velocity": {"low": 0, "high": 63}}},
-                    {"source": {"file": "loud.it"}},
-                ],
-            }
-        ),
-        encoding="utf-8",
+    manifest = bank_manifest(
+        tmp_path / "bank.json",
+        [
+            {"source": {"file": "quiet.it"}, "select": {"velocity": {"low": 0, "high": 63}}},
+            {"source": {"file": "loud.it"}},
+        ],
+        name="Layered",
     )
     converted = convert(piece, Config(bank=manifest))
     song = converted.conversion.song

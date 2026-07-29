@@ -8,6 +8,8 @@ from trackmod.module.protocol import TrackerModule
 
 from midi2tracker.config import Config
 from midi2tracker.instruments.bank import Bank
+from midi2tracker.instruments.ensemble import Ensemble
+from midi2tracker.instruments.store import open_bank
 from midi2tracker.midi.events import MidiSong
 from midi2tracker.midi.parser import parse_midi
 from midi2tracker.song.builder import Conversion, build_song
@@ -24,7 +26,7 @@ class Converted:
     module: TrackerModule
     midi: MidiSong
     grid: RowGrid
-    bank: Bank
+    ensemble: Ensemble
     conversion: Conversion
 
     @property
@@ -54,18 +56,27 @@ def row_grid(midi: MidiSong, config: Config) -> RowGrid:
 
 
 def instrument_bank(config: Config) -> Bank:
-    """The instruments a conversion plays through, from whichever of the settings names them.
+    """The bank a conversion plays through, from whichever of the settings names it.
 
     Raises:
-        BankError: when the manifest, an instrument, or a velocity map cannot be read.
+        BankError: when the bank, an instrument, or a velocity map cannot be read.
     """
     if config.bank is not None:
-        return Bank.from_manifest(config.bank, offset=config.slot)
+        return Bank.from_store(open_bank(config.bank))
 
     if config.instrument_file is not None:
-        return Bank.from_instrument(config.instrument_file, velocity_map=config.velocity_map, offset=config.slot)
+        return Bank.from_instrument(config.instrument_file, velocity_map=config.velocity_map)
 
-    return Bank.placeholder(offset=config.slot)
+    return Bank.placeholder()
+
+
+def instrument_ensemble(config: Config) -> Ensemble:
+    """The instrument table a conversion writes: its bank, placed on the slot the settings start it from.
+
+    Raises:
+        BankError: when the bank, an instrument, or a velocity map cannot be read.
+    """
+    return Ensemble.of((instrument_bank(config),), reserved=config.slot)
 
 
 def convert(path: Path | str, config: Config) -> Converted:
@@ -75,17 +86,17 @@ def convert(path: Path | str, config: Config) -> Converted:
         BankError: when the instruments the settings name cannot be read.
     """
     target = config.target
-    bank = instrument_bank(config)
+    ensemble = instrument_ensemble(config)
     parsed = parse_midi(path)
     midi = parsed if config.tempo is None else parsed.starting_at(config.tempo)
     grid = row_grid(midi, config)
     allocation = allocate(midi, grid, channels=config.channels)
     layout = Layout(height=config.pattern_rows, name=Path(path).stem)
-    conversion = build_song(midi, allocation, grid, layout, target=target, bank=bank)
+    conversion = build_song(midi, allocation, grid, layout, target=target, ensemble=ensemble)
     return Converted(
         module=target.bind(conversion.song),
         midi=midi,
         grid=grid,
-        bank=bank,
+        ensemble=ensemble,
         conversion=conversion,
     )

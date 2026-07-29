@@ -4,7 +4,7 @@ from trackmod.core.songs.order import OrderList
 from trackmod.core.songs.playback import Playback
 from trackmod.core.songs.song import Song
 
-from midi2tracker.instruments.bank import Bank
+from midi2tracker.instruments.ensemble import Ensemble
 from midi2tracker.midi.events import MidiSong, NoteEvent, TempoEvent
 from midi2tracker.song.height import pattern_height
 from midi2tracker.song.layout import Layout
@@ -50,9 +50,9 @@ def build_song(
     layout: Layout,
     *,
     target: TrackerTarget,
-    bank: Bank,
+    ensemble: Ensemble,
 ) -> Conversion:
-    """The song a MIDI file becomes: its voices on channels, played through a bank, tempo changes and all."""
+    """The song a MIDI file becomes: its voices on channels, played through an ensemble, tempo changes and all."""
     rows = grid.row_of(midi.last_tick) + grid.rows_per_beat * TRAILING_BEATS + 1
     channels = _channels_used(allocation)
     grids = Grids.covering(
@@ -61,9 +61,9 @@ def build_song(
         height=pattern_height(rows, preferred=layout.height, target=target),
         minimum=target.min_rows,
     )
-    sounding = sound(allocation, bank=bank, target=target)
+    sounding = sound(allocation, ensemble=ensemble, target=target)
     written = build_patterns(grids, sounding, midi.tempos, grid, target=target)
-    instruments, samples = bank.content
+    instruments, samples = ensemble.content
     song = Song(
         name=layout.name,
         channels=channels,

@@ -4,6 +4,7 @@ from trackmod.core.notes.command import NoteCommand
 from trackmod.core.patterns.cell import Cell
 
 from midi2tracker.instruments.bank import Bank
+from midi2tracker.instruments.ensemble import Ensemble
 from midi2tracker.instruments.velocity import LinearVelocity
 from midi2tracker.midi.events import MidiSong, TempoEvent
 from midi2tracker.song.patterns import Grid, Grids, build_patterns
@@ -30,7 +31,8 @@ def written(
     allocation = allocate(song, grid, channels=channels)
     rows = grid.row_of(song.last_tick) + grid.rows_per_beat + 1
     grids = Grids.covering(rows, channels=channels, height=height, minimum=target.min_rows)
-    sounding = sound(allocation, bank=Bank.placeholder(offset=instrument), target=target)
+    ensemble = Ensemble.of((Bank.placeholder(),), reserved=instrument)
+    sounding = sound(allocation, ensemble=ensemble, target=target)
     return build_patterns(grids, sounding, song.tempos, grid, target=target)
 
 

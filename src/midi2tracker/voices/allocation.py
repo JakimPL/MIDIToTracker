@@ -1,8 +1,11 @@
 from dataclasses import dataclass, field
+from typing import Final
 
 from midi2tracker.midi.events import MidiSong, NoteEvent
 from midi2tracker.timing.grid import RowGrid
 from midi2tracker.voices.voice import Voice
+
+SINGLE_TRACK: Final = 0  # the track a piece read from one file is, until several of them are arranged
 
 
 @dataclass(frozen=True)
@@ -74,6 +77,7 @@ def _placed(note: NoteEvent, grid: RowGrid, allocator: _Allocator) -> Voice:
     allocator.channels[channel].take(began=start.row, ends=release_row)
     return Voice(
         note=note,
+        track=SINGLE_TRACK,
         channel=channel,
         start=start,
         release_row=release_row,
