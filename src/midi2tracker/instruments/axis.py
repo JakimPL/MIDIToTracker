@@ -7,14 +7,16 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 @unique
 class Axis(StrEnum):
-    """A dimension of how a note was played, along which a bank chooses between its instruments.
+    """A dimension a note falls somewhere along, which a bank chooses between its instruments by.
 
-    Velocity is the one axis today. Another is a member here, a field on
-    :class:`~midi2tracker.instruments.expression.Expression`, and an arm in its reader — the manifest
-    keeps its shape, since a selector names axes by these very strings.
+    Velocity states how hard a note was struck and pitch which key it was struck on, so a bank reaches
+    both what a producer layered by dynamics and what it wrote one layer's keyboard across. A further
+    axis is a member here, a field on :class:`~midi2tracker.instruments.expression.Expression`, and an
+    arm in its reader — the manifest keeps its shape, since a selector names axes by these very strings.
     """
 
     VELOCITY = "velocity"
+    PITCH = "pitch"
 
 
 class Band(BaseModel):

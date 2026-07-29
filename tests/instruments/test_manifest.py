@@ -26,7 +26,7 @@ def test_the_document_a_producer_writes_reads_back_whole(tmp_path: Path) -> None
                 "layers": [
                     {
                         "source": {"file": "ungrouped/module.it", "instrument": 0},
-                        "select": {"velocity": {"low": 0, "high": 127}},
+                        "select": {"velocity": {"low": 0, "high": 127}, "pitch": {"low": 29, "high": 101}},
                         "velocity_map": "ungrouped/velocity_map.json",
                     }
                 ],
@@ -37,8 +37,8 @@ def test_the_document_a_producer_writes_reads_back_whole(tmp_path: Path) -> None
     assert manifest.name == "Piano"
     assert layer.source.file == Path("ungrouped/module.it")
     assert layer.velocity_map == Path("ungrouped/velocity_map.json")
-    assert layer.select.covers(Expression(velocity=127))
-    assert Axis.VELOCITY in layer.select.root
+    assert layer.select.covers(Expression(velocity=127, pitch=60))
+    assert {Axis.VELOCITY, Axis.PITCH} == set(layer.select.root)
 
 
 def test_a_layer_stating_only_its_source_answers_every_note(tmp_path: Path) -> None:
@@ -46,7 +46,18 @@ def test_a_layer_stating_only_its_source_answers_every_note(tmp_path: Path) -> N
     layer = BankManifest.load(written(tmp_path / "bank.json", document)).layers[0]
     assert layer.source.instrument == 0
     assert layer.velocity_map is None
-    assert layer.select.covers(Expression(velocity=1))
+    assert layer.select.covers(Expression(velocity=1, pitch=0))
+
+
+def test_an_axis_this_reader_does_not_name_is_reported(tmp_path: Path) -> None:
+    """A manifest routes on the axes stated here, so one naming another is refused rather than ignored."""
+    document = {
+        "version": MANIFEST_VERSION,
+        "name": "One",
+        "layers": [{"source": {"file": "module.it"}, "select": {"aftertouch": {"low": 0, "high": 63}}}],
+    }
+    with pytest.raises(BankError, match="aftertouch"):
+        BankManifest.load(written(tmp_path / "bank.json", document))
 
 
 def test_a_field_a_later_producer_adds_still_loads(tmp_path: Path) -> None:

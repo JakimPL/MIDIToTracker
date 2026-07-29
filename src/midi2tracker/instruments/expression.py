@@ -4,27 +4,32 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from midi2tracker.instruments.axis import Axis
 from midi2tracker.midi.events import NoteEvent
-from midi2tracker.spec import MAX_VELOCITY
+from midi2tracker.spec import MAX_PITCH, MAX_VELOCITY
 
 
 class Expression(BaseModel):
     """Where one note falls on the axes a bank routes along.
 
-    A bank chooses an instrument from how a note was played, and the instrument's own keymap decides
-    which sample the key then reaches — so the pitch stays out of this and the playing is all it carries.
+    The velocity picks the layer a producer measured that dynamic against, and the pitch picks between
+    the instruments it wrote that layer's keyboard across, which a keymap alone tells apart only where
+    each of those instruments answers its own keys. The chosen instrument's keymap then reaches the
+    sample the key sounds.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     velocity: int = Field(ge=0, le=MAX_VELOCITY)
+    pitch: int = Field(ge=0, le=MAX_PITCH)
 
     @classmethod
     def of(cls, note: NoteEvent) -> Expression:
-        """How a MIDI note was played, in the terms a bank reads."""
-        return cls(velocity=note.velocity)
+        """Where a MIDI note falls on the axes a bank reads."""
+        return cls(velocity=note.velocity, pitch=note.pitch)
 
     def coordinate(self, axis: Axis) -> int:
         """Where this note falls along one axis."""
         match axis:
             case Axis.VELOCITY:
                 return self.velocity
+            case Axis.PITCH:
+                return self.pitch

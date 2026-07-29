@@ -105,9 +105,13 @@ contributes what it shares — the same rule `Config.load` follows for the setti
 
 ### Which layer a note reaches
 
-`select` maps an **axis name** to a band with both ends counted as inside it. Velocity is the one axis
-today; a note's coordinates along the axes are its `Expression`, read from what the MIDI file states
-about how it was played.
+`select` maps an **axis name** to a band with both ends counted as inside it. A note's coordinates along
+the axes are its `Expression`, read from what the MIDI file states about the note:
+
+| Axis | Reads | The bands it is for |
+|---|---|---|
+| `velocity` | `NoteEvent.velocity` | The dynamic layers a producer sampled and measured apart from each other |
+| `pitch` | `NoteEvent.pitch`, in MIDI numbering | The instruments a producer wrote one layer's keyboard across |
 
 Layers are tried in order, and the first whose every stated band covers the note answers it. An axis a
 layer leaves out answers the whole of it, so a bank reads from its most particular case down to its most
@@ -120,12 +124,34 @@ A layer answering a note still leaves it silent when the layer's own keymap rout
 which is the ordinary case of a sampled instrument covering the stretch of keyboard it was recorded
 over. The run [reports those notes](#what-a-run-reports).
 
+### Why the pitch is an axis of its own
+
+A keymap already says which sample a key reaches, so where one instrument holds a whole layer the pitch
+decides nothing a bank has to state. It carries weight where a **format numbers few samples inside one
+instrument** — FastTracker 2 reads sixteen — and a producer therefore writes one layer's keyboard across
+several instruments. Each of those is a standalone file that answers every key it was filled over, so two
+of them offered the same key both say yes, and the pitch band is what says which of them owns that
+stretch:
+
+```json
+"layers": [
+  {"source": {"file": "instruments/p029-p060_v000-v127.xi"},
+   "select": {"pitch": {"low": 0, "high": 60}}},
+  {"source": {"file": "instruments/p061-p101_v000-v127.xi"},
+   "select": {"pitch": {"low": 61, "high": 127}}}
+]
+```
+
+The bands tile the whole axis rather than stopping at the keys each file was recorded over, so a note
+outside the sampled stretch reaches the nearest instrument and sounds whatever that instrument's keymap
+was filled with — the same thing a bank of one instrument does with it.
+
 ### Adding an axis
 
-A second axis is a member of `Axis`, a field on `Expression`, and an arm in its reader. The document
-shape holds still, because a selector names its axes by those very strings.
+A third axis is a member of `Axis`, a field on `Expression`, and an arm in its reader. The document shape
+holds still, because a selector names its axes by those very strings.
 
-The velocity axis reads `NoteEvent.velocity`, which the parser already keeps. An axis over controllers
+Velocity and pitch both read fields the parser already keeps on `NoteEvent`. An axis over controllers
 needs `midi/parser.py` to retain their values, which today it reads for the sustain pedal.
 
 ## Velocity maps
@@ -229,15 +255,17 @@ copies, so a waveform two layers share costs one slot there and two in an `.xm`.
 instrument directories holds
 
 ```
+bank.json            the manifest naming every instrument below and the notes it answers
 module.it            the instrument and the samples its keymap reaches
 velocity_map.json    the measured volume for each of the 128 velocities
+instruments/         each written instrument on its own, named by the keys and dynamics it answers
 ```
 
-which `--instrument-file module.it` takes whole, map included. An `.iti` or `.xi` beside a
-`velocity_map.json` is read exactly the same way, so a producer chooses the container and the flag stays
-one flag. The verified `Piano` routes 61 keys
-between MIDI 29 and 101 onto 61 samples, recorded at 6–16 kHz in eight and sixteen bits, each staged
-with its own gain — 524 KB of module that plays with no tracker opened.
+`--bank bank.json` takes the directory whole, and `--instrument-file module.it` takes the module alone
+with the map beside it picked up. An `.iti` or `.xi` beside a `velocity_map.json` is read exactly the
+same way, so a producer chooses the container and the flag stays one flag. The verified `Piano` routes
+61 keys between MIDI 29 and 101 onto 61 samples, recorded at 6–16 kHz in eight and sixteen bits, each
+staged with its own gain — 524 KB of module that plays with no tracker opened.
 
 A byte budget is what a producer spends, so the instrument it settles on is the one that fits: the
 `Piano` keeps 61 of the 73 keys in its stretch and leaves the other twelve to be reported, and its
@@ -245,8 +273,8 @@ samples run 0.04–2.42 seconds with six of them looped, so a note held past its
 as long as the recording lasts. Both are the producer's decisions, and a conversion states them as they
 were made.
 
-A manifest is what names several such directories as one instrument, and is the shape a producer writes
-when it starts emitting layers of its own.
+The manifest is what names the files under `instruments/` as one instrument, whether they are the layers
+of a velocity split, the stretches of keyboard a format's sample bound cut one layer into, or both.
 
 ## Checking a bank end to end
 

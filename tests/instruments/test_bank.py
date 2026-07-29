@@ -22,7 +22,8 @@ from tests.conftest import (
 )
 
 FIRST_SLOT = 0
-STRUCK = Expression(velocity=100)
+MIDDLE_C = 60
+STRUCK = Expression(velocity=100, pitch=MIDDLE_C)
 STANDALONE = (ITI_EXTENSION, XI_EXTENSION)
 
 
@@ -91,10 +92,58 @@ def test_the_first_layer_covering_a_note_is_the_one_that_answers_it(tmp_path: Pa
     bank = Bank.from_manifest(path, offset=FIRST_SLOT)
     assert quiet.exists() and loud.exists()
 
-    soft = bank.voicing(Note.from_midi(60), Expression(velocity=30))
-    hard = bank.voicing(Note.from_midi(60), Expression(velocity=100))
+    soft = bank.voicing(Note.from_midi(60), Expression(velocity=30, pitch=MIDDLE_C))
+    hard = bank.voicing(Note.from_midi(60), Expression(velocity=100, pitch=MIDDLE_C))
     assert soft is not None and soft.slot == 0
     assert hard is not None and hard.slot == 1
+
+
+def test_a_layer_of_one_band_is_reached_by_the_keys_it_states(tmp_path: Path) -> None:
+    """Both instruments answer the same keys and the same dynamics, so the pitch band is what tells them apart.
+
+    A producer whose format numbers few samples inside one instrument writes a band's keyboard across
+    several, and each of them answers every key it was filled over, so the manifest states which of them
+    owns which stretch.
+    """
+    instrument_file(tmp_path / "lower.it", name="Lower")
+    instrument_file(tmp_path / "upper.it", name="Upper")
+    path = manifest(
+        tmp_path / "bank.json",
+        [
+            {"source": {"file": "lower.it"}, "select": {"pitch": {"low": 0, "high": 59}}},
+            {"source": {"file": "upper.it"}, "select": {"pitch": {"low": 60, "high": 127}}},
+        ],
+    )
+    bank = Bank.from_manifest(path, offset=FIRST_SLOT)
+
+    lower = bank.voicing(Note.from_midi(55), Expression(velocity=100, pitch=55))
+    upper = bank.voicing(Note.from_midi(60), STRUCK)
+    assert lower is not None and lower.slot == 0
+    assert upper is not None and upper.slot == 1
+
+
+def test_a_layer_states_the_dynamics_and_the_keys_it_answers_together(tmp_path: Path) -> None:
+    """A note reaches the layer whose every band covers it, so a split on both axes routes on both."""
+    instrument_file(tmp_path / "quiet.it", name="Quiet")
+    instrument_file(tmp_path / "loud.it", name="Loud")
+    path = manifest(
+        tmp_path / "bank.json",
+        [
+            {
+                "source": {"file": "quiet.it"},
+                "select": {"velocity": {"low": 0, "high": 63}, "pitch": {"low": 60, "high": 127}},
+            },
+            {"source": {"file": "loud.it"}},
+        ],
+    )
+    bank = Bank.from_manifest(path, offset=FIRST_SLOT)
+
+    both = bank.voicing(Note.from_midi(60), Expression(velocity=30, pitch=MIDDLE_C))
+    too_low = bank.voicing(Note.from_midi(55), Expression(velocity=30, pitch=55))
+    too_hard = bank.voicing(Note.from_midi(60), STRUCK)
+    assert both is not None and both.slot == 0
+    assert too_low is not None and too_low.slot == 1
+    assert too_hard is not None and too_hard.slot == 1
 
 
 def test_every_layer_becomes_a_slot_with_its_own_samples_behind_it(tmp_path: Path) -> None:
