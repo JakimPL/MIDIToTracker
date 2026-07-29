@@ -45,7 +45,7 @@ def test_a_note_past_the_keys_the_format_numbers_is_named_rather_than_moved(grid
     bank = Bank.placeholder()
     result = sounding(grid, note(0, 48, pitch=120), bank=bank, target=fast)
     assert result.sounded == ()
-    assert [event.pitch for event in result.unplayable] == [120]
+    assert [voice.note.pitch for voice in result.unplayable] == [120]
     assert result.silent == ()
 
 
@@ -65,7 +65,7 @@ def test_a_note_the_bank_never_sampled_is_named_rather_than_dropped_in_silence(
     outside = min(SAMPLED_KEYS) - 1
     result = sounding(grid, note(0, 48, pitch=outside), bank=bank, target=target)
     assert result.sounded == ()
-    assert [event.pitch for event in result.silent] == [outside]
+    assert [voice.note.pitch for voice in result.silent] == [outside]
     assert result.unplayable == ()
 
 
@@ -82,6 +82,6 @@ def test_the_two_silences_are_counted_apart(grid: RowGrid, tmp_path: Path) -> No
         bank=bank,
         target=fast,
     )
-    assert [event.pitch for event in result.unplayable] == [120]
-    assert [event.pitch for event in result.silent] == [min(SAMPLED_KEYS) - 1]
+    assert [voice.note.pitch for voice in result.unplayable] == [120]
+    assert [voice.note.pitch for voice in result.silent] == [min(SAMPLED_KEYS) - 1]
     assert len(result.sounded) == 1

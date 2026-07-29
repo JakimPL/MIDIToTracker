@@ -9,6 +9,7 @@ from midi2tracker.midi.events import NoteEvent, TempoEvent
 from midi2tracker.song.height import pattern_height
 from midi2tracker.song.layout import Layout
 from midi2tracker.song.patterns import Grids, build_patterns
+from midi2tracker.song.report import TrackReport, report
 from midi2tracker.song.sounding import sound
 from midi2tracker.timing.grid import RowGrid
 from midi2tracker.timing.tempo import playable_tempo
@@ -20,18 +21,35 @@ TRAILING_BEATS = 1
 
 @dataclass(frozen=True)
 class Conversion:
-    """One converted piece: the song, and everything the conversion had to give up on the way."""
+    """One converted piece: the song, what each track cost, and the tempo changes the grid had no room for.
+
+    ``tracks`` is where every loss is kept, since each one is corrected in the track that earned it; the
+    counts below read the same account over the whole piece.
+    """
 
     song: Song
-    stolen_notes: int
+    tracks: tuple[TrackReport, ...]
     dropped_tempos: tuple[TempoEvent, ...]
-    unplayable_notes: tuple[NoteEvent, ...]
-    silent_notes: tuple[NoteEvent, ...]
 
     @property
     def rows(self) -> int:
         """How many rows the song plays through."""
         return self.song.rows
+
+    @property
+    def stolen_notes(self) -> int:
+        """How many notes of the piece displaced another, counted over every track."""
+        return sum(track.stolen for track in self.tracks)
+
+    @property
+    def unplayable_notes(self) -> tuple[NoteEvent, ...]:
+        """Every note of the piece whose pitch reaches past the keys the format numbers."""
+        return tuple(note for track in self.tracks for note in track.unplayable)
+
+    @property
+    def silent_notes(self) -> tuple[NoteEvent, ...]:
+        """Every note of the piece reaching a key its track's bank leaves unsampled."""
+        return tuple(note for track in self.tracks for note in track.silent)
 
 
 def build_song(
@@ -77,8 +95,6 @@ def build_song(
     )
     return Conversion(
         song=song,
-        stolen_notes=allocation.stolen,
+        tracks=report(arrangement, allocation, sounding),
         dropped_tempos=written.dropped_tempos,
-        unplayable_notes=sounding.unplayable,
-        silent_notes=sounding.silent,
     )

@@ -11,13 +11,13 @@ Everything here lives under `midi2tracker/instruments/`.
 One instrument covering the whole keyboard is a flag:
 
 ```
-uv run midi2tracker song.mid --instrument-file Piano/module.it
+uv run midi2tracker song.mid song.it --instrument-file Piano/module.it
 ```
 
 Several instruments, each answering its own notes, is a bank:
 
 ```
-uv run midi2tracker song.mid --bank Piano.bank
+uv run midi2tracker song.mid song.it --bank Piano.bank
 ```
 
 Both build the same object. The flag is the bank's single-layer case with its files already named, so a
@@ -25,6 +25,10 @@ bank grows from one to many by writing a document rather than by taking another 
 
 Naming neither writes one empty slot with a keymap sending every key to it, which is a module to open in
 a tracker and drop a waveform into.
+
+An arrangement names one of these per track, in the same words, so a piece assembled from stems plays
+each stem through a bank of its own on one instrument table.
+[`docs/arrangement.md`](arrangement.md) states that document.
 
 ## How a bank is shipped
 

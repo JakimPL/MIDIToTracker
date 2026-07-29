@@ -9,6 +9,7 @@ from trackmod.trackers.it.spec.identity import MAGIC_MODULE
 from trackmod.trackers.xm.module import XMModule
 from trackmod.trackers.xm.spec.identity import MAGIC
 
+from midi2tracker.arrangement.mode import ChannelAllocation
 from midi2tracker.cli import build_parser, main
 from midi2tracker.config import Config, load
 from midi2tracker.instruments.manifest import MANIFEST_VERSION
@@ -17,22 +18,27 @@ from tests.conftest import (
     lift,
     press,
     standalone_instrument,
+    tempo,
     write_midi,
 )
 
-
-def test_the_output_defaults_to_the_input_with_the_format_suffix(piece: Path, tmp_path: Path) -> None:
-    source = tmp_path / "song.mid"
-    source.write_bytes(piece.read_bytes())
-    assert main([str(source)]) == 0
-    assert (tmp_path / "song.it").read_bytes()[: len(MAGIC_MODULE)] == MAGIC_MODULE
+STEMS = ("bass.mid", "lead.mid", "pad.mid")
 
 
-def test_the_format_asked_for_decides_the_suffix_and_the_bytes(piece: Path, tmp_path: Path) -> None:
-    source = tmp_path / "song.mid"
-    source.write_bytes(piece.read_bytes())
-    assert main([str(source), "--format", "xm"]) == 0
-    assert (tmp_path / "song.xm").read_bytes()[: len(MAGIC)] == MAGIC
+def test_where_the_module_goes_is_stated_rather_than_derived(piece: Path) -> None:
+    # A piece may be assembled from several files under a name of its own, so where it is written is the
+    # caller's to say.
+    with pytest.raises(SystemExit):
+        main([str(piece)])
+
+
+def test_the_format_asked_for_decides_the_bytes_that_are_written(piece: Path, tmp_path: Path) -> None:
+    impulse = tmp_path / "song.it"
+    fast = tmp_path / "song.xm"
+    assert main([str(piece), str(impulse)]) == 0
+    assert main([str(piece), str(fast), "--format", "xm"]) == 0
+    assert impulse.read_bytes()[: len(MAGIC_MODULE)] == MAGIC_MODULE
+    assert fast.read_bytes()[: len(MAGIC)] == MAGIC
 
 
 def test_an_explicit_output_path_is_honoured(piece: Path, tmp_path: Path) -> None:
@@ -45,17 +51,23 @@ def test_a_config_file_supplies_the_defaults_the_flags_override(tmp_path: Path) 
     # The configuration is read before the parser is built, so a file's values are what the flags start
     # from rather than being loaded afterwards and overwritten by them.
     config = tmp_path / "custom.yaml"
-    config.write_text("channels: 7\nrows_per_beat: 9\ninstrument: 3\nformat: xm\n", encoding="utf-8")
-    parsed = build_parser(load(config)).parse_args(["in.mid", "--config", str(config)])
+    config.write_text(
+        "channels: 7\nrows_per_beat: 9\ninstrument: 3\nformat: xm\nallocation: packed\n",
+        encoding="utf-8",
+    )
+    parsed = build_parser(load(config)).parse_args(["in.mid", "out.xm", "--config", str(config)])
     assert (parsed.channels, parsed.rows_per_beat, parsed.instrument) == (7, 9, 3)
     assert parsed.format == "xm"
+    assert parsed.allocation is ChannelAllocation.PACKED
 
 
 def test_a_flag_wins_over_the_configuration_it_defaults_from(tmp_path: Path) -> None:
     config = tmp_path / "custom.yaml"
-    config.write_text("channels: 7\n", encoding="utf-8")
-    parsed = build_parser(load(config)).parse_args(["in.mid", "--config", str(config), "--channels", "12"])
+    config.write_text("channels: 7\nallocation: packed\n", encoding="utf-8")
+    arguments = ["in.mid", "out.it", "--config", str(config), "--channels", "12", "--allocation", "separated"]
+    parsed = build_parser(load(config)).parse_args(arguments)
     assert parsed.channels == 12
+    assert parsed.allocation is ChannelAllocation.SEPARATED
 
 
 def test_the_flags_reach_the_file_that_is_written(piece: Path, tmp_path: Path) -> None:
@@ -67,11 +79,11 @@ def test_the_flags_reach_the_file_that_is_written(piece: Path, tmp_path: Path) -
     assert len(song.instruments) == 2
 
 
-def test_a_configuration_the_format_refuses_is_reported_at_the_parser(piece: Path) -> None:
+def test_a_configuration_the_format_refuses_is_reported_at_the_parser(piece: Path, tmp_path: Path) -> None:
     # Every bound is the format's, so a value outside one is refused where it is given rather than
     # written into a field too small for it.
     with pytest.raises(SystemExit):
-        main([str(piece), "--channels", "0"])
+        main([str(piece), str(tmp_path / "out.it"), "--channels", "0"])
 
 
 def test_a_count_one_format_carries_and_the_other_refuses_follows_the_format(piece: Path, tmp_path: Path) -> None:
@@ -82,11 +94,11 @@ def test_a_count_one_format_carries_and_the_other_refuses_follows_the_format(pie
         main([str(piece), str(tmp_path / "wide.xm"), "--format", "xm", "--channels", "64"])
 
 
-def test_a_setting_the_whole_model_refuses_is_named_in_the_message(piece: Path, capsys) -> None:
+def test_a_setting_the_whole_model_refuses_is_named_in_the_message(piece: Path, tmp_path: Path) -> None:
     # The rule spans the format and the count, so it is the model that states it and the message carries
     # its own wording rather than a flag's.
     with pytest.raises(SystemExit) as refused:
-        main([str(piece), "--format", "xm", "--channels", "64"])
+        main([str(piece), str(tmp_path / "out.xm"), "--format", "xm", "--channels", "64"])
 
     assert "channels 64 is above 32" in str(refused.value)
 
@@ -169,6 +181,80 @@ def test_a_piece_spreading_past_the_format_is_reported_before_anything_is_writte
         main([str(arrangement), str(output), "--format", "xm", "--channels", "20"])
 
     assert not output.exists()
+
+
+def test_an_arrangement_of_several_files_writes_one_module(tmp_path: Path, capsys) -> None:
+    write_midi(tmp_path / "bass.mid", [press(48, 0), lift(48, 96)])
+    write_midi(tmp_path / "lead.mid", [press(72, 0), lift(72, 96)])
+    arrangement = tmp_path / "song.yaml"
+    arrangement.write_text("tracks:\n  bass.mid:\n  lead.mid:\n", encoding="utf-8")
+    output = tmp_path / "out.it"
+    assert main([str(arrangement), str(output)]) == 0
+    assert ITModule.load(output).song.channels > 0
+    assert "notes         2" in capsys.readouterr().out
+
+
+def test_the_summary_names_every_track_of_a_piece_assembled_from_several_files(tmp_path: Path, capsys) -> None:
+    # Each loss is corrected in one stem, so the account is stated stem by stem rather than only summed.
+    write_midi(tmp_path / "bass.mid", [press(48, 0), lift(48, 192), press(50, 0), lift(50, 192)])
+    write_midi(tmp_path / "lead.mid", [press(72, 0), lift(72, 96)])
+    arrangement = tmp_path / "song.yaml"
+    arrangement.write_text("tracks:\n  bass.mid:\n    channels: 1\n  lead.mid:\n", encoding="utf-8")
+    assert main([str(arrangement), str(tmp_path / "out.it")]) == 0
+
+    printed = capsys.readouterr().out
+    assert "tracks        2  (separated)" in printed
+    assert "bass" in printed and "lead" in printed
+    assert "1 displaced" in printed
+
+
+def test_a_piece_read_from_one_file_states_no_track_breakdown(piece: Path, tmp_path: Path, capsys) -> None:
+    assert main([str(piece), str(tmp_path / "out.it")]) == 0
+    assert "tracks " not in capsys.readouterr().out
+
+
+def in_turn(tmp_path: Path, stated: str) -> Path:
+    """Three stems taking their turn, so keeping them apart costs three channels and packing costs one."""
+    for index, stem in enumerate(STEMS):
+        write_midi(tmp_path / stem, [press(48 + index, index * 192), lift(48 + index, index * 192 + 96)])
+
+    arrangement = tmp_path / "song.yaml"
+    arrangement.write_text(stated + "".join(f"  {stem}:\n" for stem in STEMS), encoding="utf-8")
+    return arrangement
+
+
+def test_packing_the_tracks_reaches_a_narrower_module_than_keeping_them_apart(tmp_path: Path, capsys) -> None:
+    arrangement = in_turn(tmp_path, "tracks:\n")
+    stated = {}
+    for allocation in ("separated", "packed"):
+        assert main([str(arrangement), str(tmp_path / f"{allocation}.it"), "--allocation", allocation]) == 0
+        stated[allocation] = capsys.readouterr().out
+
+    assert "channels      4" in stated["separated"]
+    assert "channels      2" in stated["packed"]
+
+
+def test_the_allocation_a_document_states_is_the_one_the_flag_defaults_to(tmp_path: Path, capsys) -> None:
+    # The document describes the piece and the flag the run, so a piece stating how it is laid out keeps
+    # that layout wherever it is converted from.
+    arrangement = in_turn(tmp_path, "allocation: packed\ntracks:\n")
+    assert main([str(arrangement), str(tmp_path / "out.it"), "--allocation", "separated"]) == 0
+
+    printed = capsys.readouterr().out
+    assert "tracks        3  (packed)" in printed
+    assert "channels      2" in printed
+
+
+def test_a_tempo_the_piece_does_not_follow_is_named_by_the_verbose_run(tmp_path: Path, capsys) -> None:
+    write_midi(tmp_path / "bass.mid", [press(48, 0), lift(48, 96), tempo(120.0, 0)])
+    write_midi(tmp_path / "lead.mid", [press(72, 0), lift(72, 96), tempo(90.0, 0)])
+    arrangement = tmp_path / "song.yaml"
+    arrangement.write_text("tracks:\n  bass.mid:\n  lead.mid:\n", encoding="utf-8")
+    assert main([str(arrangement), str(tmp_path / "out.it"), "--verbose"]) == 0
+
+    printed = capsys.readouterr().out
+    assert "unheard on lead" in printed
+    assert "90.00 BPM" in printed
 
 
 def test_the_notes_a_run_leaves_out_are_named_in_the_summary(tmp_path: Path, capsys) -> None:

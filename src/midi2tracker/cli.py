@@ -9,14 +9,17 @@ from trackmod.limits.compliance import Compliance
 
 from midi2tracker import __version__
 from midi2tracker.arrangement.error import ArrangementError
+from midi2tracker.arrangement.mode import ChannelAllocation
 from midi2tracker.config import AUTOMATIC_SPEED, Config, load
 from midi2tracker.convert import Converted, convert
 from midi2tracker.instruments.error import BankError
 from midi2tracker.midi.events import NoteEvent
+from midi2tracker.song.report import TrackReport
 from midi2tracker.tracker.format import TrackerFormat
 from midi2tracker.voices.error import AllocationError
 
 STATED_PREFIX: Final = "Value error, "  # pydantic prepends this to the message a validator raises
+SEVERAL_TRACKS: Final = 2  # the count from which a piece is worth reporting track by track
 
 
 def _config_argument(argv: Sequence[str] | None) -> Path | None:
@@ -32,13 +35,13 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
     """The command line, with every knob defaulting to what the configuration states."""
     parser = argparse.ArgumentParser(
         prog="midi2tracker",
-        description="Convert a MIDI file into a tracker module",
+        description="Convert a MIDI file, or an arrangement of several, into a tracker module",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
         "input",
         type=Path,
-        help="input .mid file",
+        help="a .mid file, or a .yaml arrangement naming several of them",
     )
     parser.add_argument(
         "output",
@@ -69,7 +72,14 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
         "--channels",
         type=int,
         default=defaults.channels,
-        help="how many channels the polyphony may reach",
+        help="how many channels one track's polyphony may reach",
+    )
+    parser.add_argument(
+        "--allocation",
+        type=ChannelAllocation,
+        choices=tuple(ChannelAllocation),
+        default=defaults.allocation,
+        help="how the tracks of an arrangement share the channel table",
     )
     parser.add_argument(
         "--rows-per-beat",
@@ -148,6 +158,7 @@ def build_config(args: argparse.Namespace, defaults: Config) -> Config:
             "format": args.format,
             "compliance": args.compliance,
             "channels": args.channels,
+            "allocation": args.allocation,
             "rows_per_beat": args.rows_per_beat,
             "pattern_rows": args.pattern_rows,
             "speed": args.speed,
@@ -160,6 +171,35 @@ def build_config(args: argparse.Namespace, defaults: Config) -> Config:
     )
 
 
+def _cost(track: TrackReport) -> str:
+    """What one track gave up, as a phrase; a track that gave up nothing states nothing."""
+    counted = (
+        (track.stolen, "displaced"),
+        (len(track.unplayable), "past the keys"),
+        (len(track.silent), "unsampled"),
+    )
+    named = [f"{count} {reason}" for count, reason in counted if count]
+    return f"  ({', '.join(named)})" if named else ""
+
+
+def _tracks(converted: Converted) -> list[str]:
+    """One line per track of a piece assembled from several files, since each is corrected on its own.
+
+    A piece read from one file has its channels and its losses in the lines around this already.
+    """
+    tracks = converted.conversion.tracks
+    if len(tracks) < SEVERAL_TRACKS:
+        return []
+
+    width = max(len(track.name) for track in tracks)
+    stated = [f"  tracks        {len(tracks)}  ({converted.arrangement.allocation})"]
+    stated.extend(
+        f"    {track.name:<{width}}  {track.channels:2d} channel(s)  {track.notes:4d} note(s){_cost(track)}"
+        for track in tracks
+    )
+    return stated
+
+
 def _describe(converted: Converted, path: Path) -> str:
     """The summary one conversion prints: what it produced, and what it had to give up."""
     conversion = converted.conversion
@@ -170,14 +210,18 @@ def _describe(converted: Converted, path: Path) -> str:
         f"  file size     {len(converted.module.to_bytes()):,} bytes",
         f"  patterns      {len(conversion.song.patterns)}  ({conversion.rows} rows)",
         f"  channels      {conversion.song.channels}",
-        f"  notes         {len(converted.midi.notes)}",
+        f"  notes         {converted.arrangement.notes}",
+        *_tracks(converted),
         f"  bank          {', '.join(bank.name for bank in converted.ensemble.banks)}",
         f"  instruments   {len(conversion.song.instruments)}  ({len(conversion.song.samples)} sample(s))",
         f"  speed         {converted.grid.speed} ticks/row  ({converted.grid.rows_per_beat} rows/beat)",
         f"  tempo         {tempos[0].beats_per_minute:.1f} BPM{changes} ->  tracker tempo {conversion.song.playback.tempo}",
     ]
     if conversion.stolen_notes:
-        lines.append(f"  note          {conversion.stolen_notes} note(s) displaced another; raise --channels")
+        lines.append(
+            f"  note          {conversion.stolen_notes} note(s) displaced another; raise --channels, or the "
+            "ceiling the track states"
+        )
     if conversion.dropped_tempos:
         lines.append(f"  note          {len(conversion.dropped_tempos)} tempo change(s) found no free effect column")
     if conversion.unplayable_notes:
@@ -199,6 +243,29 @@ def _pitches(heading: str, notes: Sequence[NoteEvent]) -> list[str]:
     return [f"  {heading}", f"    MIDI {stated}"]
 
 
+def _left_out(tracks: Sequence[TrackReport]) -> list[str]:
+    """The pitches each track leaves out, under the reason they went unheard.
+
+    Naming the track is what points at the instrument to sample more widely or the part to transpose,
+    since a piece assembled from stems answers each of those in one stem at a time.
+    """
+    lines: list[str] = []
+    for track in tracks:
+        lines.extend(_pitches(f"{track.name}: past the keys this format numbers", track.unplayable))
+        lines.extend(_pitches(f"{track.name}: left unsampled by the bank", track.silent))
+
+    return lines
+
+
+def _unheard(converted: Converted) -> list[str]:
+    """Every tempo a track states that the module does not play, and the track that stated it."""
+    return [
+        f"    unheard on {unheard.track} at tick {unheard.tempo.tick}: "
+        f"{unheard.tempo.beats_per_minute:.2f} BPM; name that track as the clock to follow it"
+        for unheard in converted.arrangement.unheard_tempos
+    ]
+
+
 def _detail(converted: Converted) -> str:
     """Every tempo the piece states and the row it takes effect on, for reading the grid against."""
     conversion = converted.conversion
@@ -207,11 +274,11 @@ def _detail(converted: Converted) -> str:
         row = converted.grid.row_of(tempo.tick)
         lines.append(f"    tick {tempo.tick:8d}  row {row:6d}  {tempo.beats_per_minute:7.2f} BPM")
 
+    lines.extend(_unheard(converted))
     for dropped in conversion.dropped_tempos:
         lines.append(f"    dropped at tick {dropped.tick}: no channel on that row had a free effect column")
 
-    lines.extend(_pitches("past the keys this format numbers", conversion.unplayable_notes))
-    lines.extend(_pitches("left unsampled by the bank", conversion.silent_notes))
+    lines.extend(_left_out(conversion.tracks))
     return "\n".join(lines)
 
 
