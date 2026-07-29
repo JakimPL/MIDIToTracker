@@ -41,9 +41,7 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
     parser.add_argument(
         "output",
         type=Path,
-        nargs="?",
-        default=None,
-        help="output module (default: the input's name with the format's suffix)",
+        help="output module",
     )
     parser.add_argument(
         "--config",
@@ -248,7 +246,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValidationError as invalid:
         raise SystemExit(_reject(invalid)) from invalid
 
-    output = args.output or args.input.with_suffix(config.target.extension)
+    output = args.output
     try:
         converted = convert(args.input, config)
     except BankError as unreadable:
