@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from midi2tracker.arrangement.piece import Arrangement
 from midi2tracker.config import Config
 from midi2tracker.instruments.ensemble import Ensemble
 from midi2tracker.midi.events import MidiSong
+from midi2tracker.settings import NO_OVERRIDES
 from midi2tracker.song.builder import Conversion, build_song
 from midi2tracker.song.layout import Layout
 from midi2tracker.timing.grid import RowGrid
@@ -63,19 +65,25 @@ def row_grid(midi: MidiSong, config: Config) -> RowGrid:
     return RowGrid(pulses_per_beat=midi.pulses_per_beat, rows_per_beat=config.rows_per_beat, speed=speed)
 
 
-def convert(path: Path | str, config: Config) -> Converted:
-    """Convert the piece at ``path`` into a module under ``config``.
+def convert(path: Path | str, config: Config, overrides: Mapping[str, object] = NO_OVERRIDES) -> Converted:
+    """Convert the piece at ``path`` into a module under ``config``, with ``overrides`` on top.
+
+    ``config`` is the bottom layer, what the configuration file states, and ``overrides`` the knobs the
+    command line was typed with. The piece settles the two with its own ``settings`` in between, and the
+    module is written from what they settled on, so every stage here reads one answer per knob.
 
     Raises:
-        ArrangementError: when the arrangement, or a MIDI file it names, cannot be read.
+        ArrangementError: when the arrangement, a MIDI file it names, or the settings it states cannot
+            be read.
         BankError: when the instruments the piece names cannot be read.
         AllocationError: when the piece reaches more channels than the format plays.
     """
-    target = config.target
-    arrangement = arrange(Path(path), config)
-    grid = row_grid(arrangement.timing, config)
-    allocation = allocate(arrangement.tracks, grid, allocation=arrangement.allocation, target=target)
-    layout = Layout(height=config.pattern_rows, name=arrangement.name)
+    arrangement = arrange(Path(path), config, overrides)
+    settled = arrangement.config
+    target = settled.target
+    grid = row_grid(arrangement.timing, settled)
+    allocation = allocate(arrangement.tracks, grid, allocation=settled.allocation, target=target)
+    layout = Layout(height=settled.pattern_rows, name=arrangement.name)
     conversion = build_song(arrangement, allocation, grid, layout, target=target)
     return Converted(
         module=target.bind(conversion.song),

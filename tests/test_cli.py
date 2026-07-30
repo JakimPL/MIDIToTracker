@@ -9,10 +9,11 @@ from trackmod.trackers.it.spec.identity import MAGIC_MODULE
 from trackmod.trackers.xm.module import XMModule
 from trackmod.trackers.xm.spec.identity import MAGIC
 
-from midi2tracker.cli import build_parser, main
+from midi2tracker.cli import build_parser, main, stated_settings
 from midi2tracker.config import Config, load
 from midi2tracker.instruments.manifest import MANIFEST_VERSION
 from midi2tracker.settings import ChannelAllocation
+from midi2tracker.tracker.format import TrackerFormat
 from tests.conftest import (
     instrument_file,
     lift,
@@ -47,27 +48,36 @@ def test_an_explicit_output_path_is_honoured(piece: Path, tmp_path: Path) -> Non
     assert ITModule.load(output).song.channels > 0
 
 
-def test_a_config_file_supplies_the_defaults_the_flags_override(tmp_path: Path) -> None:
-    # The configuration is read before the parser is built, so a file's values are what the flags start
-    # from rather than being loaded afterwards and overwritten by them.
+def settled(config: Path, arguments: list[str]) -> Config:
+    """What one command line settles on, over the configuration file it names."""
+    defaults = load(config)
+    return defaults.updated(stated_settings(build_parser(defaults).parse_args(arguments)))
+
+
+def test_a_flag_left_untyped_states_nothing_and_the_config_file_answers(tmp_path: Path) -> None:
+    # A flag counts only where it is typed, so the values a run states are the ones a piece and its
+    # settings are free to answer for themselves.
     config = tmp_path / "custom.yaml"
     config.write_text(
         "channels: 7\nrows_per_beat: 9\ninstrument: 3\nformat: xm\nallocation: packed\n",
         encoding="utf-8",
     )
-    parsed = build_parser(load(config)).parse_args(["in.mid", "out.xm", "--config", str(config)])
-    assert (parsed.channels, parsed.rows_per_beat, parsed.instrument) == (7, 9, 3)
-    assert parsed.format == "xm"
-    assert parsed.allocation is ChannelAllocation.PACKED
+    arguments = ["in.mid", "out.xm", "--config", str(config)]
+    assert stated_settings(build_parser(load(config)).parse_args(arguments)) == {}
+
+    whole = settled(config, arguments)
+    assert (whole.channels, whole.rows_per_beat, whole.instrument) == (7, 9, 3)
+    assert whole.format is TrackerFormat.XM
+    assert whole.allocation is ChannelAllocation.PACKED
 
 
-def test_a_flag_wins_over_the_configuration_it_defaults_from(tmp_path: Path) -> None:
+def test_a_flag_wins_over_the_configuration_it_is_typed_against(tmp_path: Path) -> None:
     config = tmp_path / "custom.yaml"
     config.write_text("channels: 7\nallocation: packed\n", encoding="utf-8")
     arguments = ["in.mid", "out.it", "--config", str(config), "--channels", "12", "--allocation", "separated"]
-    parsed = build_parser(load(config)).parse_args(arguments)
-    assert parsed.channels == 12
-    assert parsed.allocation is ChannelAllocation.SEPARATED
+    whole = settled(config, arguments)
+    assert whole.channels == 12
+    assert whole.allocation is ChannelAllocation.SEPARATED
 
 
 def test_the_flags_reach_the_file_that_is_written(piece: Path, tmp_path: Path) -> None:
@@ -237,15 +247,25 @@ def test_packing_the_tracks_reaches_a_narrower_module_than_keeping_them_apart(tm
     assert written == {"separated": 4, "packed": 2}
 
 
-def test_the_allocation_a_document_states_is_the_one_the_flag_defaults_to(tmp_path: Path, capsys) -> None:
-    # The document describes the piece and the flag the run, so a piece stating how it is laid out keeps
-    # that layout wherever it is converted from.
+def test_the_allocation_a_document_states_holds_where_no_flag_is_typed(tmp_path: Path, capsys) -> None:
+    # The document describes the piece, so a piece stating how it is laid out keeps that layout wherever
+    # it is converted from.
     arrangement = in_turn(tmp_path, "settings:\n  allocation: packed\ntracks:\n")
-    assert main([str(arrangement), str(tmp_path / "out.it"), "--allocation", "separated"]) == 0
+    assert main([str(arrangement), str(tmp_path / "out.it")]) == 0
 
     printed = capsys.readouterr().out
     assert "tracks        3  (packed)" in printed
     assert "channels      2" in printed
+
+
+def test_the_allocation_a_flag_is_typed_with_stands_over_the_document(tmp_path: Path, capsys) -> None:
+    # A flag states the run, which is the one layer a caller writes by hand, so it answers last.
+    arrangement = in_turn(tmp_path, "settings:\n  allocation: packed\ntracks:\n")
+    assert main([str(arrangement), str(tmp_path / "out.it"), "--allocation", "separated"]) == 0
+
+    printed = capsys.readouterr().out
+    assert "tracks        3  (separated)" in printed
+    assert "channels      4" in printed
 
 
 def test_a_tempo_the_piece_does_not_follow_is_named_by_the_verbose_run(tmp_path: Path, capsys) -> None:

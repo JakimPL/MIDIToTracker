@@ -1,5 +1,5 @@
 import argparse
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Final
 
@@ -20,6 +20,22 @@ from midi2tracker.voices.error import AllocationError
 
 STATED_PREFIX: Final = "Value error, "  # pydantic prepends this to the message a validator raises
 SEVERAL_TRACKS: Final = 2  # the count from which a piece is worth reporting track by track
+SETTING_FLAGS: Final = frozenset(
+    {
+        "format",
+        "compliance",
+        "channels",
+        "allocation",
+        "rows_per_beat",
+        "pattern_rows",
+        "speed",
+        "tempo",
+        "instrument",
+        "bank",
+        "instrument_file",
+        "velocity_map",
+    }
+)
 
 
 def _config_argument(argv: Sequence[str] | None) -> Path | None:
@@ -31,8 +47,21 @@ def _config_argument(argv: Sequence[str] | None) -> Path | None:
     return path
 
 
+def _supplied(value: object) -> str:
+    """What the settings already supply for one flag, as its help line names it.
+
+    A knob the settings leave open reads as the flag's own description alone, since there is no value
+    to quote for it yet.
+    """
+    return "" if value is None else f"  (settings: {value})"
+
+
 def build_parser(defaults: Config) -> argparse.ArgumentParser:
-    """The command line, with every knob defaulting to what the configuration states."""
+    """The command line, with each setting flag naming what the configuration file supplies for it.
+
+    A setting flag holds no default of its own: left untyped it stays out of the namespace, so what a
+    run states is exactly what was typed and the piece decides the rest.
+    """
     parser = argparse.ArgumentParser(
         prog="midi2tracker",
         description="Convert a MIDI file, or an arrangement of several, into a tracker module",
@@ -58,76 +87,91 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
         "--format",
         type=TrackerFormat,
         choices=tuple(TrackerFormat),
-        default=defaults.format,
-        help="the tracker format the module is written as",
+        default=argparse.SUPPRESS,
+        help=f"the tracker format the module is written as{_supplied(defaults.format)}",
     )
     parser.add_argument(
         "--compliance",
         type=Compliance,
         choices=tuple(Compliance),
-        default=defaults.compliance,
-        help="how strictly the module holds to the tracker the format was designed for",
+        default=argparse.SUPPRESS,
+        help=(
+            "how strictly the module holds to the tracker the format was designed for"
+            f"{_supplied(defaults.compliance)}"
+        ),
     )
     parser.add_argument(
         "--channels",
         type=int,
-        default=defaults.channels,
-        help="how many channels one track's polyphony may reach",
+        default=argparse.SUPPRESS,
+        help=f"how many channels one track's polyphony may reach{_supplied(defaults.channels)}",
     )
     parser.add_argument(
         "--allocation",
         type=ChannelAllocation,
         choices=tuple(ChannelAllocation),
-        default=defaults.allocation,
-        help="how the tracks of an arrangement share the channel table",
+        default=argparse.SUPPRESS,
+        help=f"how the tracks of an arrangement share the channel table{_supplied(defaults.allocation)}",
     )
     parser.add_argument(
         "--rows-per-beat",
         type=int,
-        default=defaults.rows_per_beat,
-        help="rows one quarter note spans",
+        default=argparse.SUPPRESS,
+        help=f"rows one quarter note spans{_supplied(defaults.rows_per_beat)}",
     )
     parser.add_argument(
         "--pattern-rows",
         type=int,
-        default=defaults.pattern_rows,
-        help="how tall one pattern may be",
+        default=argparse.SUPPRESS,
+        help=f"how tall one pattern may be{_supplied(defaults.pattern_rows)}",
     )
     parser.add_argument(
         "--speed",
         type=int,
-        default=defaults.speed,
-        help=f"ticks per row; {AUTOMATIC_SPEED} chooses the finest the piece's tempo allows",
+        default=argparse.SUPPRESS,
+        help=(
+            f"ticks per row; {AUTOMATIC_SPEED} chooses the finest the piece's tempo allows"
+            f"{_supplied(defaults.speed)}"
+        ),
     )
     parser.add_argument(
         "--tempo",
         type=float,
-        default=defaults.tempo,
-        help="opening tempo in BPM, overriding the file",
+        default=argparse.SUPPRESS,
+        help=(
+            "the one tempo in BPM the piece plays throughout; stating none follows the file's tempo map"
+            f"{_supplied(defaults.tempo)}"
+        ),
     )
     parser.add_argument(
         "--instrument",
         type=int,
-        default=defaults.instrument,
-        help="the slot the instruments start on",
+        default=argparse.SUPPRESS,
+        help=f"the slot the instruments start on{_supplied(defaults.instrument)}",
     )
     parser.add_argument(
         "--bank",
         type=Path,
-        default=defaults.bank,
-        help="a bank container, or a manifest, naming the instruments the notes play through",
+        default=argparse.SUPPRESS,
+        help=(
+            "a bank container, or a manifest, naming the instruments the notes play through"
+            f"{_supplied(defaults.bank)}"
+        ),
     )
     parser.add_argument(
         "--instrument-file",
         type=Path,
-        default=defaults.instrument_file,
-        help="one instrument file every note plays through",
+        default=argparse.SUPPRESS,
+        help=f"one instrument file every note plays through{_supplied(defaults.instrument_file)}",
     )
     parser.add_argument(
         "--velocity-map",
         type=Path,
-        default=defaults.velocity_map,
-        help="the measured velocity map an instrument file is read with; stating none reads velocity evenly",
+        default=argparse.SUPPRESS,
+        help=(
+            "the measured velocity map an instrument file is read with; stating none reads velocity evenly"
+            f"{_supplied(defaults.velocity_map)}"
+        ),
     )
     parser.add_argument(
         "--version",
@@ -143,32 +187,13 @@ def build_parser(defaults: Config) -> argparse.ArgumentParser:
     return parser
 
 
-def build_config(args: argparse.Namespace, defaults: Config) -> Config:
-    """The configuration one run uses: the file's values with the flags given on top.
+def stated_settings(args: argparse.Namespace) -> dict[str, object]:
+    """The settings one run was typed with, which are the flags that reached the namespace.
 
-    Rebuilding the model rather than copying it is what holds a flag to the same bounds a file's value
-    answers to, so a number the format cannot carry is refused wherever it came from.
-
-    Raises:
-        ValidationError: when a flag leaves the range its field states.
+    Every setting flag is suppressed when it goes untyped, so what this returns is the top layer: the
+    knobs a caller stated by hand, over both the configuration file and the piece's own ``settings``.
     """
-    return Config.model_validate(
-        defaults.model_dump()
-        | {
-            "format": args.format,
-            "compliance": args.compliance,
-            "channels": args.channels,
-            "allocation": args.allocation,
-            "rows_per_beat": args.rows_per_beat,
-            "pattern_rows": args.pattern_rows,
-            "speed": args.speed,
-            "tempo": args.tempo,
-            "instrument": args.instrument,
-            "bank": args.bank,
-            "instrument_file": args.instrument_file,
-            "velocity_map": args.velocity_map,
-        }
-    )
+    return {name: value for name, value in vars(args).items() if name in SETTING_FLAGS}
 
 
 def _cost(track: TrackReport) -> str:
@@ -306,18 +331,30 @@ def _reject(invalid: ValidationError) -> str:
     return "\n".join(["these settings cannot be used as given:", *lines])
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    defaults = load(_config_argument(argv))
-    args = build_parser(defaults).parse_args(argv)
+def _graded(defaults: Config, overrides: Mapping[str, object]) -> None:
+    """Hold the flags typed to their fields' bounds before a file is opened.
 
+    The layers settle again once the piece is in hand, and this earlier grading is what lets a value the
+    format cannot carry be named after the flag it was typed on.
+
+    Raises:
+        SystemExit: when a flag leaves the range its field states.
+    """
     try:
-        config = build_config(args, defaults)
+        defaults.updated(overrides)
     except ValidationError as invalid:
         raise SystemExit(_reject(invalid)) from invalid
 
+
+def main(argv: Sequence[str] | None = None) -> int:
+    defaults = load(_config_argument(argv))
+    args = build_parser(defaults).parse_args(argv)
+    overrides = stated_settings(args)
+    _graded(defaults, overrides)
+
     output = args.output
     try:
-        converted = convert(args.input, config)
+        converted = convert(args.input, defaults, overrides)
     except ArrangementError as unreadable:
         raise SystemExit(f"cannot read this piece:\n  {unreadable}") from unreadable
     except BankError as unreadable:
