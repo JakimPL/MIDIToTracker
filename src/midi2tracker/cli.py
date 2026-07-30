@@ -9,11 +9,11 @@ from trackmod.limits.compliance import Compliance
 
 from midi2tracker import __version__
 from midi2tracker.arrangement.error import ArrangementError
-from midi2tracker.arrangement.mode import ChannelAllocation
-from midi2tracker.config import AUTOMATIC_SPEED, Config, load
+from midi2tracker.config import Config, load
 from midi2tracker.convert import Converted, convert
 from midi2tracker.instruments.error import BankError
 from midi2tracker.midi.events import NoteEvent
+from midi2tracker.settings import AUTOMATIC_SPEED, ChannelAllocation
 from midi2tracker.song.report import TrackReport
 from midi2tracker.tracker.format import TrackerFormat
 from midi2tracker.voices.error import AllocationError

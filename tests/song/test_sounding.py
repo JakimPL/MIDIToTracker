@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from midi2tracker.arrangement.mode import DEFAULT_ALLOCATION
 from midi2tracker.instruments.bank import Bank
 from midi2tracker.instruments.ensemble import Ensemble
 from midi2tracker.midi.events import NoteEvent
+from midi2tracker.settings import DEFAULT_ALLOCATION
 from midi2tracker.song.sounding import Sounding, sound
 from midi2tracker.timing.grid import RowGrid
 from midi2tracker.tracker.format import TrackerFormat

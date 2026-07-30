@@ -7,8 +7,8 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from midi2tracker.arrangement.error import ArrangementError
-from midi2tracker.arrangement.mode import ChannelAllocation
 from midi2tracker.arrangement.spec import TrackSpec
+from midi2tracker.settings import ChannelAllocation
 
 ARRANGEMENT_EXTENSIONS: Final = frozenset({".yaml", ".yml"})
 FIRST_TRACK: Final = 0

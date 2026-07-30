@@ -7,7 +7,7 @@ import yaml
 
 from midi2tracker.arrangement.document import ArrangementDocument, arranges
 from midi2tracker.arrangement.error import ArrangementError
-from midi2tracker.arrangement.mode import ChannelAllocation
+from midi2tracker.settings import ChannelAllocation
 
 FIRST_TRACK = 0
 SECOND_TRACK = 1

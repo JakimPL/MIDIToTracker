@@ -4,9 +4,9 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final
 
-from midi2tracker.arrangement.mode import ChannelAllocation
 from midi2tracker.arrangement.track import Track
 from midi2tracker.midi.events import NoteEvent
+from midi2tracker.settings import ChannelAllocation
 from midi2tracker.timing.grid import RowGrid
 from midi2tracker.tracker.target import TrackerTarget
 from midi2tracker.voices.error import AllocationError

@@ -3,11 +3,11 @@ from __future__ import annotations
 from trackmod.core.notes.command import NoteCommand
 from trackmod.core.patterns.cell import Cell
 
-from midi2tracker.arrangement.mode import DEFAULT_ALLOCATION
 from midi2tracker.instruments.bank import Bank
 from midi2tracker.instruments.ensemble import Ensemble
 from midi2tracker.instruments.velocity import LinearVelocity
 from midi2tracker.midi.events import MidiSong, TempoEvent
+from midi2tracker.settings import DEFAULT_ALLOCATION
 from midi2tracker.song.patterns import Grid, Grids, build_patterns
 from midi2tracker.song.sounding import sound
 from midi2tracker.timing.grid import RowGrid

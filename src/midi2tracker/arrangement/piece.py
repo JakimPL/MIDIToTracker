@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from midi2tracker.arrangement.mode import ChannelAllocation
 from midi2tracker.arrangement.track import Track
 from midi2tracker.instruments.ensemble import Ensemble
 from midi2tracker.midi.events import MidiSong, TempoEvent
+from midi2tracker.settings import ChannelAllocation
 
 
 @dataclass(frozen=True)

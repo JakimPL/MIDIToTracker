@@ -7,10 +7,10 @@ import yaml
 
 from midi2tracker.arrangement.build import arrange
 from midi2tracker.arrangement.error import ArrangementError
-from midi2tracker.arrangement.mode import ChannelAllocation
 from midi2tracker.config import Config
 from midi2tracker.instruments.error import BankError
 from midi2tracker.instruments.velocity import VELOCITY_COUNT
+from midi2tracker.settings import ChannelAllocation
 from tests.conftest import (
     bank_container,
     instrument_file,

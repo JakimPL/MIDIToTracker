@@ -9,10 +9,10 @@ from trackmod.trackers.it.spec.identity import MAGIC_MODULE
 from trackmod.trackers.xm.module import XMModule
 from trackmod.trackers.xm.spec.identity import MAGIC
 
-from midi2tracker.arrangement.mode import ChannelAllocation
 from midi2tracker.cli import build_parser, main
 from midi2tracker.config import Config, load
 from midi2tracker.instruments.manifest import MANIFEST_VERSION
+from midi2tracker.settings import ChannelAllocation
 from tests.conftest import (
     instrument_file,
     lift,

@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from midi2tracker.arrangement.build import arrange
-from midi2tracker.arrangement.mode import ChannelAllocation
 from midi2tracker.config import Config
 from midi2tracker.convert import row_grid
+from midi2tracker.settings import ChannelAllocation
 from midi2tracker.song.report import TrackReport, report
 from midi2tracker.song.sounding import sound
 from midi2tracker.tracker.format import TrackerFormat
