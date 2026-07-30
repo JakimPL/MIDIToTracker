@@ -5,7 +5,7 @@ channels: 32            # how many channels one track's polyphony may reach
 allocation: separated   # separated gives each track channels of its own; packed draws them from one pool
 pattern_rows: 64        # how tall one pattern may be
 speed: 0                # ticks per row; 0 chooses the finest the piece's tempo allows
-tempo: null             # opening BPM override; null reads it from the file
+tempo: null             # the one BPM the whole piece plays; null follows the file's own tempo map
 instrument: 1           # the slot the instruments start on
 bank: null              # a bank container, or a manifest, naming the instruments the notes play through
 instrument_file: null   # one instrument file every note plays through, instead of a bank

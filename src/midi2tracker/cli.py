@@ -13,12 +13,11 @@ from midi2tracker.config import Config, load
 from midi2tracker.convert import Converted, convert
 from midi2tracker.instruments.error import BankError
 from midi2tracker.midi.events import NoteEvent
-from midi2tracker.settings import AUTOMATIC_SPEED, ChannelAllocation
+from midi2tracker.settings import AUTOMATIC_SPEED, STATED_PREFIX, ChannelAllocation
 from midi2tracker.song.report import TrackReport
 from midi2tracker.tracker.format import TrackerFormat
 from midi2tracker.voices.error import AllocationError
 
-STATED_PREFIX: Final = "Value error, "  # pydantic prepends this to the message a validator raises
 SEVERAL_TRACKS: Final = 2  # the count from which a piece is worth reporting track by track
 SETTING_FLAGS: Final = frozenset(
     {

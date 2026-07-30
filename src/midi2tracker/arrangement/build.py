@@ -18,7 +18,7 @@ from midi2tracker.instruments.manifest import MANIFEST_VERSION, BankManifest
 from midi2tracker.instruments.store import StatedStore, open_bank
 from midi2tracker.midi.events import MidiSong
 from midi2tracker.midi.parser import parse_midi
-from midi2tracker.settings import NO_OVERRIDES
+from midi2tracker.settings import NO_OVERRIDES, STATED_PREFIX
 
 HERE = Path()
 
@@ -83,6 +83,20 @@ def _on_one_scale(songs: tuple[MidiSong, ...]) -> tuple[MidiSong, ...]:
     return tuple(song.rescaled(common) for song in songs)
 
 
+def _unusable(name: str | None, invalid: ValidationError) -> str:
+    """What a piece states that the layers cannot be settled into, one refused setting to a line.
+
+    Each line names the setting and what its bound says. A rule spanning several settings is stated by the
+    model itself and names no setting, so its own wording is what the caller reads.
+    """
+    lines = []
+    for error in invalid.errors():
+        stated = error["msg"].removeprefix(STATED_PREFIX)
+        lines.append(f"    {error['loc'][0]}: {stated}" if error["loc"] else f"    {stated}")
+
+    return "\n".join([f"{name} states settings that cannot be used:", *lines])
+
+
 def _settled(document: ArrangementDocument, config: Config, overrides: Mapping[str, object]) -> Config:
     """The settings this piece is built under: the file's, the document's own, then the flags typed.
 
@@ -92,7 +106,7 @@ def _settled(document: ArrangementDocument, config: Config, overrides: Mapping[s
     try:
         return config.updated(document.settings.stated, overrides)
     except ValidationError as invalid:
-        raise ArrangementError(f"{document.name} states settings that cannot be used: {invalid}") from invalid
+        raise ArrangementError(_unusable(document.name, invalid)) from invalid
 
 
 def build(document: ArrangementDocument, *, root: Path, config: Config) -> Arrangement:

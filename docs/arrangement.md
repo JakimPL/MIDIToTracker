@@ -19,7 +19,11 @@ Everything here lives under `midi2tracker/arrangement/`.
 # song.yaml — every path is read against this file's own directory
 name: Nocturne             # what the module calls itself; omit for the document's file name
 clock: brass.mid           # the track whose tempo map the piece follows; omit for the first
-allocation: separated      # how the tracks share the channel table; omit for the setting
+
+settings:                  # how this piece is laid out; omit a key to take it from config.yaml
+  rows_per_beat: 8
+  pattern_rows: 64
+  allocation: separated
 
 tracks:
   bass.mid: Bass/Bass.bank             # a path alone names the bank the track plays through
@@ -52,13 +56,59 @@ written inline — and one track states one of those. [`docs/bank.md`](bank.md) 
 | `velocity_map` | the velocity map that file is read with; omit to read velocity evenly |
 | `layers` | the layers a bank is made of, stated here rather than shipped as a file |
 | `name` | what the track is called in the summary, and what an inline bank calls itself |
-| `channels` | this track's own ceiling; omit to be held to the `channels` setting |
+| `channels` | this track's own ceiling; omit to be held to the [`channels` setting](#the-settings-the-piece-states) |
 
 Two tracks naming the same instruments are handed the same bank, so a piece assembled from stems of one
 instrument costs that instrument one set of slots and stores its samples once.
 
 Keys outside this shape are ignored, so a document written for a later version still loads and
 contributes what it shares.
+
+## The settings the piece states
+
+A piece is written for a grid: a row rate its parts divide evenly, a pattern height its phrases sit in,
+a tempo it was composed at. `settings` states those beside the tracks, so they travel with the document
+and every conversion of it comes out the same:
+
+```yaml
+settings:
+  tempo: 96              # the one tempo the piece plays; omit to follow the map `clock` names
+  speed: 3               # ticks per row; 0 chooses the finest the piece's tempo allows
+  rows_per_beat: 8       # how many rows a quarter note is spread over
+  pattern_rows: 64       # how tall one pattern may be
+  channels: 12           # how many channels one track's polyphony may reach
+  instrument: 1          # the slot the instruments start on
+  allocation: separated  # how the tracks share the channel table
+```
+
+Every key is omittable, and a bare `settings:` states nothing at all. What is left out comes from the
+layer beneath, of which there are three, lowest first:
+
+| Layer | States |
+|---|---|
+| `config.yaml` | what every conversion starts from |
+| `settings` | what belongs to this piece, wherever it is converted from |
+| the flags typed | what this one run asks for |
+
+A flag counts where it is typed, so a run naming none of them leaves the document's answers standing and
+`--rows-per-beat 4` overrides the one the document states for that run alone.
+
+A key left out and a key stated as nothing say different things. Omitting `tempo` leaves it to
+`config.yaml`; `tempo: null` states that this piece plays the map its stems were written with, even where
+`config.yaml` names a number.
+
+`format` and `compliance` stay out of the block, since they describe the file that gets written rather
+than the piece. `bank`, `instrument_file` and `velocity_map` stay out as well — a track states its own,
+and `channels` is the one setting a track may also state for itself.
+
+The settings are graded once the three layers are added up, against the format the module is written as,
+so a piece asking for more than that format plays is named as a setting to correct:
+
+```
+cannot read this piece:
+  Nocturne states settings that cannot be used:
+    channels 64 is above 32, the most XM carries
+```
 
 ## One tick scale
 
@@ -69,15 +119,20 @@ lands on the beat its own file put it on and combining the tracks costs no round
 ## One clock
 
 A module keeps one clock. `clock` names the track whose tempo map the piece plays; omitting it follows the
-first track the document states. `--tempo` replaces the opening BPM of that track, since that map is the
-one the module carries.
+first track the document states.
 
 A tempo another track states is read for its notes alone, and `--verbose` names each one — the track, the
 tick and the BPM — so a piece following the wrong stem's timing says which stem to point `clock` at.
 
+Stating `tempo` puts the whole piece on that one number instead: every track plays at it from the first
+row to the last, in place of the map its own file carries. That is what a piece written at a fixed tempo
+asks for, and it leaves nothing unheard, since every track then keeps the same time. `clock` still names
+the track the module follows, which is what a piece falls back to wherever `tempo` is left open.
+
 ## How the tracks share the channels
 
-`allocation` decides what the tracks make of the channel table. Each track allocates within its own
+`allocation` is one of the [settings](#the-settings-the-piece-states), and it decides what the tracks make
+of the channel table. Each track allocates within its own
 ceiling either way: a track at its ceiling gives up its own oldest voice rather than reaching for a
 channel another track holds, so a ceiling means the same thing in both.
 
@@ -91,8 +146,8 @@ part per run of channels, which is what an editor shows and a mixer expects. `pa
 each track's polyphony with another track's notes, which is what a piece wider than the format plays
 needs.
 
-A document stating `allocation` keeps that layout wherever it is converted from, so `--allocation`
-supplies what a document leaves out rather than overriding what it states.
+A document stating `allocation` keeps that layout wherever it is converted from, and `--allocation`
+lays one run out the other way.
 
 The width follows from the piece — its polyphony, each track's ceiling, and the way the tracks share —
 so it is derived rather than set, and rounded up to a stereo pair. A width past what the format plays is

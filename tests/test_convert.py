@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 from pydantic import ValidationError
 from trackmod.core.instruments.transfer import extract
 from trackmod.core.notes.command import NoteCommand
@@ -89,6 +90,37 @@ def test_a_stated_tempo_is_the_one_the_piece_plays_throughout(piece: Path) -> No
 
     converted = convert(piece, Config(tempo=90.0))
     assert [tempo.beats_per_minute for tempo in converted.midi.tempos] == [pytest.approx(90.0, abs=0.1)]
+
+
+def test_the_settings_a_document_states_are_the_ones_the_module_is_written_under(tmp_path: Path) -> None:
+    """A piece written for one grid keeps it wherever it is converted from, over the configuration file.
+
+    The document travels with the stems, so the row rate, the pattern height, the speed and the slot it
+    states are what reach the written module.
+    """
+    messages = [
+        message
+        for beat in range(16)
+        for message in (press(48 + beat % 12, beat * 96), lift(48 + beat % 12, beat * 96 + 48))
+    ]
+    write_midi(tmp_path / "bass.mid", messages)
+    path = tmp_path / "song.yaml"
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "settings": {"rows_per_beat": 8, "pattern_rows": 32, "speed": 3, "instrument": 4},
+                "tracks": {"bass.mid": None},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    converted = convert(path, Config(rows_per_beat=4, pattern_rows=64, speed=6, instrument=1))
+    song = converted.conversion.song
+    assert (converted.grid.rows_per_beat, converted.grid.speed) == (8, 3)
+    assert song.playback.speed == 3
+    assert max(pattern.rows for pattern in song.patterns) == 32
+    assert len(song.instruments) == 4
 
 
 def test_an_explicit_speed_is_used_instead_of_the_chosen_one(piece: Path) -> None:

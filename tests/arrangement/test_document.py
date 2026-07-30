@@ -127,9 +127,20 @@ def test_a_document_naming_nothing_goes_by_the_file_it_was_read_from(tmp_path: P
     assert document.name == "suite"
 
 
+def test_a_bare_settings_heading_leaves_every_knob_to_the_layer_beneath(tmp_path: Path) -> None:
+    document = ArrangementDocument.load(written(tmp_path / "song.yaml", {"settings": None, "tracks": {"a.mid": None}}))
+    assert document.settings.stated == {}
+
+
 def test_a_field_a_later_version_adds_still_loads(tmp_path: Path) -> None:
-    document = {"swing": 0.6, "tracks": {"bass.mid": {"bank": "Bass.bank", "round_robin": 4}}}
-    assert ArrangementDocument.load(written(tmp_path / "song.yaml", document)).tracks
+    document = {
+        "swing": 0.6,
+        "settings": {"rows_per_beat": 8, "groove": "shuffle"},
+        "tracks": {"bass.mid": {"bank": "Bass.bank", "round_robin": 4}},
+    }
+    loaded = ArrangementDocument.load(written(tmp_path / "song.yaml", document))
+    assert loaded.tracks
+    assert loaded.settings.stated == {"rows_per_beat": 8}
 
 
 def test_only_a_yaml_source_is_read_as_an_arrangement() -> None:

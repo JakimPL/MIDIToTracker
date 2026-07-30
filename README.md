@@ -48,6 +48,11 @@ bank of its own, on one instrument table and one channel table.
 
 ```yaml
 # song.yaml
+settings:
+  tempo: 96
+  rows_per_beat: 8
+  allocation: separated
+
 tracks:
   bass.mid: Bass/Bass.bank
   brass.mid:
@@ -58,6 +63,10 @@ tracks:
 ```
 uv run midi2tracker song.yaml song.it
 ```
+
+`settings` is how the piece is laid out, stated where the piece is: whatever it names travels with the
+document, whatever it leaves out comes from `config.yaml`, and a flag typed on the command line lays that
+one run out its own way.
 
 `allocation` decides what the tracks make of the channel table: `separated` gives each one a run of
 channels of its own, so the module reads as the stems it was assembled from, and `packed` draws every
@@ -80,7 +89,9 @@ altogether. [`docs/arrangement.md`](docs/arrangement.md) states the document in 
 
 ## Options
 
-Every knob has a flag and a `config.yaml` entry; the file supplies the defaults the flags override.
+Every knob has a flag and a `config.yaml` entry, and an arrangement states the layout ones for itself.
+Three layers answer for each, lowest first: `config.yaml`, the document's own `settings`, and the flags
+typed for one run.
 
 | Setting | What it decides |
 |---|---|
@@ -91,7 +102,7 @@ Every knob has a flag and a `config.yaml` entry; the file supplies the defaults 
 | `allocation` | how the tracks of an arrangement share the channel table: `separated` or `packed` |
 | `pattern_rows` | how tall one pattern may be; raised automatically when a piece needs fewer patterns than the order table names, or when the format states a taller floor |
 | `speed` | ticks per row; `0` chooses the finest the piece's fastest tempo allows |
-| `tempo` | an opening BPM override; omit to read it from the file |
+| `tempo` | the one tempo in BPM the whole piece plays; omit to follow the file's own tempo map |
 | `instrument` | which slot the instruments start on |
 | `bank` | a bank — a container, or a manifest — naming the instruments the notes play through, and which notes reach each one |
 | `instrument_file` | one instrument file every note plays through, instead of a bank |

@@ -11,6 +11,7 @@ from midi2tracker.config import Config
 from midi2tracker.instruments.error import BankError
 from midi2tracker.instruments.velocity import VELOCITY_COUNT
 from midi2tracker.settings import ChannelAllocation
+from midi2tracker.tracker.format import TrackerFormat
 from tests.conftest import (
     bank_container,
     instrument_file,
@@ -112,10 +113,16 @@ def test_tracks_agreeing_with_the_clock_leave_nothing_unheard(tmp_path: Path) ->
     assert arrange(path, Config()).unheard_tempos == ()
 
 
-def test_the_stated_tempo_replaces_the_opening_of_the_track_that_keeps_time(tmp_path: Path) -> None:
-    write_midi(tmp_path / "bass.mid", [press(48, 0), lift(48, 96), tempo(100.0, 0)])
-    path = document(tmp_path / "song.yaml", {"tracks": {"bass.mid": None}})
-    assert round(arrange(path, Config(tempo=180.0)).tempos[0].beats_per_minute) == 180
+def test_the_stated_tempo_is_the_one_the_whole_piece_plays(tmp_path: Path) -> None:
+    # A stated tempo replaces the map rather than its opening, and it replaces every track's, so a piece
+    # played at one number holds each stem to it and leaves nothing unheard.
+    write_midi(tmp_path / "bass.mid", [press(48, 0), lift(48, 96), tempo(100.0, 0), tempo(140.0, 48)])
+    write_midi(tmp_path / "lead.mid", [press(72, 0), lift(72, 96), tempo(150.0, 0)])
+    path = document(tmp_path / "song.yaml", {"tracks": {"bass.mid": None, "lead.mid": None}})
+
+    arrangement = arrange(path, Config(tempo=180.0))
+    assert [round(entry.beats_per_minute) for entry in arrangement.tempos] == [180]
+    assert arrangement.unheard_tempos == ()
 
 
 def test_each_track_plays_through_the_bank_it_names(tmp_path: Path) -> None:
@@ -231,12 +238,56 @@ def test_a_track_holds_its_own_channel_ceiling(tmp_path: Path) -> None:
     assert [track.channels for track in arrangement.tracks] == [2, 12]
 
 
+def test_a_track_holds_its_channel_ceiling_over_the_one_the_settings_state(tmp_path: Path) -> None:
+    # One track's part may be wider or narrower than the rest, so its own ceiling answers before the one
+    # the piece states for every track.
+    bassline(tmp_path / "bass.mid", pulses=96)
+    melody(tmp_path / "lead.mid", pulses=96)
+    path = document(
+        tmp_path / "song.yaml",
+        {"settings": {"channels": 6}, "tracks": {"bass.mid": {"channels": 2}, "lead.mid": None}},
+    )
+    arrangement = arrange(path, Config(channels=12))
+    assert [track.channels for track in arrangement.tracks] == [2, 6]
+
+
 def test_the_allocation_the_document_states_is_the_one_the_piece_takes(tmp_path: Path) -> None:
     bassline(tmp_path / "bass.mid", pulses=96)
     packed = document(tmp_path / "packed.yaml", {"settings": {"allocation": "packed"}, "tracks": {"bass.mid": None}})
     plain = document(tmp_path / "plain.yaml", {"tracks": {"bass.mid": None}})
     assert arrange(packed, Config()).allocation is ChannelAllocation.PACKED
     assert arrange(plain, Config()).allocation is ChannelAllocation.SEPARATED
+
+
+def test_a_setting_the_document_leaves_out_is_the_configuration_file_s(tmp_path: Path) -> None:
+    # The document states what belongs to the piece and leaves the rest open, so the file underneath
+    # answers for every knob the piece is indifferent to.
+    bassline(tmp_path / "bass.mid", pulses=96)
+    path = document(tmp_path / "song.yaml", {"settings": {"channels": 3}, "tracks": {"bass.mid": None}})
+
+    settled = arrange(path, Config(channels=12, instrument=5, rows_per_beat=8, pattern_rows=32)).config
+    assert settled.channels == 3
+    assert (settled.instrument, settled.rows_per_beat, settled.pattern_rows) == (5, 8, 32)
+
+
+def test_a_tempo_the_document_states_as_nothing_reads_the_file_s_own_map(tmp_path: Path) -> None:
+    # A key left out and a key stated as nothing say different things: the first leaves the tempo to the
+    # configuration file, and the second puts the piece back on the map its stems were written with.
+    write_midi(tmp_path / "bass.mid", [press(48, 0), lift(48, 96), tempo(100.0, 0)])
+    stated = document(tmp_path / "stated.yaml", {"settings": {"tempo": None}, "tracks": {"bass.mid": None}})
+    omitted = document(tmp_path / "omitted.yaml", {"settings": {"channels": 4}, "tracks": {"bass.mid": None}})
+
+    assert round(arrange(stated, Config(tempo=180.0)).tempos[0].beats_per_minute) == 100
+    assert round(arrange(omitted, Config(tempo=180.0)).tempos[0].beats_per_minute) == 180
+
+
+def test_a_setting_the_document_states_and_the_format_refuses_is_reported(tmp_path: Path) -> None:
+    # The settings are graded once the layers are added up, so a piece asking for more than the format
+    # plays reads as a setting to correct rather than as a module that cannot be written.
+    bassline(tmp_path / "bass.mid", pulses=96)
+    path = document(tmp_path / "song.yaml", {"settings": {"channels": 64}, "tracks": {"bass.mid": None}})
+    with pytest.raises(ArrangementError, match="states settings that cannot be used"):
+        arrange(path, Config(format=TrackerFormat.XM))
 
 
 def test_one_midi_file_arranges_as_a_track_of_its_own(tmp_path: Path) -> None:

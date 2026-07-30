@@ -31,6 +31,7 @@ DEFAULT_INSTRUMENT: Final = 1
 DEFAULT_ALLOCATION: Final = ChannelAllocation.SEPARATED
 
 NO_OVERRIDES: Final[Mapping[str, object]] = MappingProxyType({})
+STATED_PREFIX: Final = "Value error, "  # pydantic prepends this to the message a validator raises
 
 
 class Settings(BaseModel):
