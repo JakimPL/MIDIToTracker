@@ -83,12 +83,12 @@ def test_the_file_is_written_where_it_was_asked_for(piece: Path, tmp_path: Path,
     assert reread(output, target).channels > 0
 
 
-def test_a_tempo_override_replaces_the_opening_tempo_only(piece: Path) -> None:
+def test_a_stated_tempo_is_the_one_the_piece_plays_throughout(piece: Path) -> None:
     original = parse_midi(piece)
+    assert len(original.tempos) > 1, "the fixture is only worth converting here if it changes tempo"
+
     converted = convert(piece, Config(tempo=90.0))
-    assert converted.midi.tempos[0].beats_per_minute == pytest.approx(90.0, abs=0.1)
-    assert [tempo.tick for tempo in converted.midi.tempos] == [tempo.tick for tempo in original.tempos]
-    assert converted.midi.tempos[1:] == original.tempos[1:]
+    assert [tempo.beats_per_minute for tempo in converted.midi.tempos] == [pytest.approx(90.0, abs=0.1)]
 
 
 def test_an_explicit_speed_is_used_instead_of_the_chosen_one(piece: Path) -> None:

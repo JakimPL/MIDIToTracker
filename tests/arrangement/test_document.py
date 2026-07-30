@@ -25,7 +25,7 @@ def test_the_document_a_caller_writes_reads_back_whole(tmp_path: Path) -> None:
             {
                 "name": "Suite",
                 "clock": "brass.mid",
-                "allocation": "packed",
+                "settings": {"allocation": "packed", "rows_per_beat": 8},
                 "tracks": {
                     "bass.mid": "Bass/Bass.bank",
                     "brass.mid": {"instrument_file": "Brass/Brass.iti", "channels": 8},
@@ -34,7 +34,8 @@ def test_the_document_a_caller_writes_reads_back_whole(tmp_path: Path) -> None:
         )
     )
     assert document.name == "Suite"
-    assert document.allocation is ChannelAllocation.PACKED
+    assert document.settings.allocation is ChannelAllocation.PACKED
+    assert document.settings.stated == {"allocation": ChannelAllocation.PACKED, "rows_per_beat": 8}
     assert document.timekeeper == SECOND_TRACK
     assert list(document.tracks) == [Path("bass.mid"), Path("brass.mid")]
     assert document.tracks[Path("bass.mid")].bank == Path("Bass/Bass.bank")

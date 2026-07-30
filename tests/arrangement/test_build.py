@@ -233,7 +233,7 @@ def test_a_track_holds_its_own_channel_ceiling(tmp_path: Path) -> None:
 
 def test_the_allocation_the_document_states_is_the_one_the_piece_takes(tmp_path: Path) -> None:
     bassline(tmp_path / "bass.mid", pulses=96)
-    packed = document(tmp_path / "packed.yaml", {"allocation": "packed", "tracks": {"bass.mid": None}})
+    packed = document(tmp_path / "packed.yaml", {"settings": {"allocation": "packed"}, "tracks": {"bass.mid": None}})
     plain = document(tmp_path / "plain.yaml", {"tracks": {"bass.mid": None}})
     assert arrange(packed, Config()).allocation is ChannelAllocation.PACKED
     assert arrange(plain, Config()).allocation is ChannelAllocation.SEPARATED

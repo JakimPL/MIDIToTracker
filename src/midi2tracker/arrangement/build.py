@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from pathlib import Path
+
+from pydantic import ValidationError
 
 from midi2tracker.arrangement.document import ArrangementDocument, arranges
 from midi2tracker.arrangement.error import ArrangementError
@@ -15,6 +18,7 @@ from midi2tracker.instruments.manifest import MANIFEST_VERSION, BankManifest
 from midi2tracker.instruments.store import StatedStore, open_bank
 from midi2tracker.midi.events import MidiSong
 from midi2tracker.midi.parser import parse_midi
+from midi2tracker.settings import NO_OVERRIDES
 
 HERE = Path()
 
@@ -79,11 +83,24 @@ def _on_one_scale(songs: tuple[MidiSong, ...]) -> tuple[MidiSong, ...]:
     return tuple(song.rescaled(common) for song in songs)
 
 
+def _settled(document: ArrangementDocument, config: Config, overrides: Mapping[str, object]) -> Config:
+    """The settings this piece is built under: the file's, the document's own, then the flags typed.
+
+    Raises:
+        ArrangementError: when what the layers add up to leaves the range a setting states.
+    """
+    try:
+        return config.updated(document.settings.stated, overrides)
+    except ValidationError as invalid:
+        raise ArrangementError(f"{document.name} states settings that cannot be used: {invalid}") from invalid
+
+
 def build(document: ArrangementDocument, *, root: Path, config: Config) -> Arrangement:
     """The piece a document describes: every file read, on one tick scale and one clock.
 
-    ``root`` is the directory the document's paths are read against. The timekeeping track's opening
-    tempo is what a stated override replaces, since that map is the one the module plays.
+    ``root`` is the directory the document's paths are read against, and ``config`` is what the layers
+    already settled on. A stated tempo flattens every track's map onto that one beat, so the piece keeps
+    it whole rather than only from the clock the module follows.
 
     Raises:
         ArrangementError: when a MIDI file the document names cannot be read.
@@ -94,11 +111,8 @@ def build(document: ArrangementDocument, *, root: Path, config: Config) -> Arran
     songs = _on_one_scale(tuple(_read(root / path) for path in paths))
     banks = _banked(document, root)
 
-    timekeeper = document.timekeeper
     if config.tempo is not None:
-        songs = tuple(
-            song.starting_at(config.tempo) if index == timekeeper else song for index, song in enumerate(songs)
-        )
+        songs = tuple(song.at_one_tempo(config.tempo) for song in songs)
 
     tracks = tuple(
         Track(
@@ -113,29 +127,35 @@ def build(document: ArrangementDocument, *, root: Path, config: Config) -> Arran
         name=document.name or paths[0].stem,
         tracks=tracks,
         ensemble=Ensemble.of(banks, reserved=config.slot),
-        timekeeper=timekeeper,
-        allocation=document.allocation or config.allocation,
+        timekeeper=document.timekeeper,
+        config=config,
     )
 
 
-def arrange(source: Path, config: Config) -> Arrangement:
+def arrange(source: Path, config: Config, overrides: Mapping[str, object] = NO_OVERRIDES) -> Arrangement:
     """The piece ``source`` names, whether it is a whole arrangement or one MIDI file.
 
     A ``.yaml`` or ``.yml`` source is the document, with its paths read against the directory it sits in.
     Anything else is one MIDI file, which is the single-track arrangement the settings already describe —
     so both reach the same object and everything downstream reads one shape.
 
+    This is where the layers meet: ``config`` is what the configuration file states, ``overrides`` what
+    the command line was actually typed with, and a document adds its own ``settings`` between them.
+
     Raises:
-        ArrangementError: when the arrangement, or a MIDI file it names, cannot be read.
+        ArrangementError: when the arrangement, a MIDI file it names, or the settings it states cannot
+            be read.
         BankError: when a bank, an instrument, or a velocity map cannot be read.
     """
     if arranges(source.suffix):
-        return build(ArrangementDocument.load(source), root=source.parent, config=config)
+        document = ArrangementDocument.load(source)
+        return build(document, root=source.parent, config=_settled(document, config, overrides))
 
+    settled = config.updated(overrides)
     document = ArrangementDocument.of(
         source,
-        bank=config.bank,
-        instrument_file=config.instrument_file,
-        velocity_map=config.velocity_map,
+        bank=settled.bank,
+        instrument_file=settled.instrument_file,
+        velocity_map=settled.velocity_map,
     )
-    return build(document, root=HERE, config=config)
+    return build(document, root=HERE, config=settled)

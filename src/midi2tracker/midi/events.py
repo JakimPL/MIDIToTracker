@@ -8,6 +8,7 @@ from midi2tracker.spec import MAX_PITCH, MAX_VELOCITY, MICROSECONDS_PER_MINUTE
 
 FROZEN = ConfigDict(frozen=True, extra="forbid")
 ONE_TO_ONE: Final = 1  # the factor a rescaling to the resolution a song already counts in works out as
+OPENING_TICK: Final = 0
 
 
 class NoteEvent(BaseModel):
@@ -78,10 +79,14 @@ class MidiSong(BaseModel):
         """The tick the last note releases on."""
         return max((note.tick_off for note in self.notes), default=0)
 
-    def starting_at(self, beats_per_minute: float) -> MidiSong:
-        """The same song with its opening tempo replaced, which is what a tempo override asks for."""
-        head = TempoEvent.at_beats_per_minute(self.tempos[0].tick, beats_per_minute)
-        return self.model_copy(update={"tempos": (head, *self.tempos[1:])})
+    def at_one_tempo(self, beats_per_minute: float) -> MidiSong:
+        """The same music played at one tempo throughout, which is what a stated tempo asks for.
+
+        The whole map gives way to that single tempo, so the piece keeps the beat it was told to keep
+        wherever the file changed its mind.
+        """
+        stated = TempoEvent.at_beats_per_minute(OPENING_TICK, beats_per_minute)
+        return self.model_copy(update={"tempos": (stated,)})
 
     def rescaled(self, pulses_per_beat: int) -> MidiSong:
         """The same music counted against a finer resolution, which is how several files share one scale.

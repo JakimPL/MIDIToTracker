@@ -4,11 +4,11 @@ from pathlib import Path
 from typing import Final
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from midi2tracker.arrangement.error import ArrangementError
 from midi2tracker.arrangement.spec import TrackSpec
-from midi2tracker.settings import ChannelAllocation
+from midi2tracker.settings import Settings
 
 ARRANGEMENT_EXTENSIONS: Final = frozenset({".yaml", ".yml"})
 FIRST_TRACK: Final = 0
@@ -27,8 +27,11 @@ class ArrangementDocument(BaseModel):
     moves as one directory.
 
     ``clock`` names the track whose tempo map the whole piece follows, since a module states one clock;
-    omitting it follows the first track. ``allocation`` and ``name`` fall back to the settings and to the
-    document's own file name.
+    omitting it follows the first track. ``name`` falls back to the document's own file name.
+
+    ``settings`` is how the piece is laid out — its grid, its tempo, its channels — stated with the piece
+    so an arrangement written for a particular shape travels as one file. Each knob it leaves out falls to
+    the configuration file, and a flag typed on the command line stands over both.
 
     Fields outside this shape are ignored, so a document written for a later version still loads and
     contributes what it shares.
@@ -38,8 +41,14 @@ class ArrangementDocument(BaseModel):
 
     name: str | None = None
     clock: Path | None = None
-    allocation: ChannelAllocation | None = None
+    settings: Settings = Field(default_factory=Settings)
     tracks: dict[Path, TrackSpec] = Field(min_length=1)
+
+    @field_validator("settings", mode="before")
+    @classmethod
+    def _a_bare_block_states_nothing(cls, stated: object) -> object:
+        """A ``settings:`` heading written with nothing under it leaves every knob to the layer beneath."""
+        return {} if stated is None else stated
 
     @model_validator(mode="after")
     def _the_clock_is_one_of_the_tracks(self) -> ArrangementDocument:

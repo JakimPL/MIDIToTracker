@@ -240,7 +240,7 @@ def test_packing_the_tracks_reaches_a_narrower_module_than_keeping_them_apart(tm
 def test_the_allocation_a_document_states_is_the_one_the_flag_defaults_to(tmp_path: Path, capsys) -> None:
     # The document describes the piece and the flag the run, so a piece stating how it is laid out keeps
     # that layout wherever it is converted from.
-    arrangement = in_turn(tmp_path, "allocation: packed\ntracks:\n")
+    arrangement = in_turn(tmp_path, "settings:\n  allocation: packed\ntracks:\n")
     assert main([str(arrangement), str(tmp_path / "out.it"), "--allocation", "separated"]) == 0
 
     printed = capsys.readouterr().out

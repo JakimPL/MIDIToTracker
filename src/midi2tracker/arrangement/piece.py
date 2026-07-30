@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from midi2tracker.arrangement.track import Track
+from midi2tracker.config import Config
 from midi2tracker.instruments.ensemble import Ensemble
 from midi2tracker.midi.events import MidiSong, TempoEvent
 from midi2tracker.settings import ChannelAllocation
@@ -22,13 +23,21 @@ class Arrangement:
 
     Every track counts its ticks in the same resolution, so the tracks are read against one grid.
     ``timekeeper`` is the track whose tempo map the module states, since a module keeps one clock.
+
+    ``config`` is what the three layers settled on for this piece — the configuration file, the document's
+    own ``settings``, and the flags typed — so everything downstream reads one answer per knob.
     """
 
     name: str
     tracks: tuple[Track, ...]
     ensemble: Ensemble
     timekeeper: int
-    allocation: ChannelAllocation
+    config: Config
+
+    @property
+    def allocation(self) -> ChannelAllocation:
+        """How the tracks of this piece share the channel table."""
+        return self.config.allocation
 
     @property
     def timing(self) -> MidiSong:
