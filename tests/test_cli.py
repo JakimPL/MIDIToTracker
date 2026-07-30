@@ -224,14 +224,17 @@ def in_turn(tmp_path: Path, stated: str) -> Path:
 
 
 def test_packing_the_tracks_reaches_a_narrower_module_than_keeping_them_apart(tmp_path: Path, capsys) -> None:
+    stated, written = {}, {}
     arrangement = in_turn(tmp_path, "tracks:\n")
-    stated = {}
     for allocation in ("separated", "packed"):
-        assert main([str(arrangement), str(tmp_path / f"{allocation}.it"), "--allocation", allocation]) == 0
+        output = tmp_path / f"{allocation}.it"
+        assert main([str(arrangement), str(output), "--allocation", allocation]) == 0
         stated[allocation] = capsys.readouterr().out
+        written[allocation] = ITModule.load(output).song.channels
 
     assert "channels      4" in stated["separated"]
     assert "channels      2" in stated["packed"]
+    assert written == {"separated": 4, "packed": 2}
 
 
 def test_the_allocation_a_document_states_is_the_one_the_flag_defaults_to(tmp_path: Path, capsys) -> None:
