@@ -46,6 +46,12 @@ class BankManifest(BaseModel):
     map its velocities were measured with. Fields outside this model are ignored, so a manifest written
     by a later producer still loads and contributes what it shares.
 
+    ``tempo`` is the clock the layers' volume envelopes were fitted against, which a producer states
+    because a format counts envelope breakpoints in ticks and a tick lasts as long as the tempo says. A
+    piece played at this tempo hears each envelope over the stretch of time it was shaped for. A bank
+    assembled by hand out of loose instrument files states none, in the way such a layer states no
+    velocity map: both are what a measurement leaves behind, and both are the producer's to record.
+
     An entry is named against the bank rather than against a directory, so the same document describes a
     bank shipped as one archive and one spread over a directory.
     """
@@ -54,6 +60,7 @@ class BankManifest(BaseModel):
 
     version: int
     name: str
+    tempo: int | None = Field(default=None, gt=0)
     layers: tuple[LayerSpec, ...] = Field(min_length=1)
 
     @model_validator(mode="after")

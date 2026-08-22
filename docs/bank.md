@@ -100,6 +100,7 @@ JSON, stored as the bank's `bank.json`, naming each instrument as an entry of th
 {
   "version": 2,
   "name": "Piano",
+  "tempo": 125,
   "layers": [
     {
       "source": {"file": "instruments/quiet.iti", "instrument": 0},
@@ -124,6 +125,7 @@ Every field is read, and this is what each one decides:
 |---|---|
 | `version` | The shape this document is written in; a manifest stating another version is refused |
 | `name` | What the bank is called; a run prints it, so a summary says what the piece played through |
+| `tempo` | The clock this bank's volume envelopes were fitted against; omit it for a bank assembled by hand |
 | `layers` | The instruments, in the order they are tried; at least one |
 | `layers[].source.file` | The entry of the bank the instrument is read out of |
 | `layers[].source.instrument` | Which instrument of that entry, counted from zero; `0` when omitted, which is what a standalone instrument file holds |
@@ -132,6 +134,16 @@ Every field is read, and this is what each one decides:
 
 Fields outside this shape are ignored, so a manifest written by a later producer still loads and
 contributes what it shares — the same rule `Config.load` follows for the settings file.
+
+`tempo` is the one field describing the bank as a whole rather than one of its layers. A format counts
+envelope breakpoints in ticks, so a curve plays the shape it was fitted with at the tempo it was fitted
+at. A written module carries a clock of its own; an instrument lifted out of one into a bank states that
+clock here instead. A piece played at this tempo hears every envelope over the stretch of time its
+producer shaped it for, and a piece played twice as fast hears the same curve over half of it.
+
+It records a measurement, so a bank assembled by hand out of loose instrument files leaves it open, the
+way such a layer leaves its `velocity_map` open. An [arrangement](arrangement.md) writing its `layers`
+inline is that case.
 
 ### Which layer a note reaches
 

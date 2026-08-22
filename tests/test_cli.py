@@ -11,10 +11,10 @@ from trackmod.trackers.xm.spec.identity import MAGIC
 
 from midi2tracker.cli import build_parser, main, stated_settings
 from midi2tracker.config import Config, load
-from midi2tracker.instruments.manifest import MANIFEST_VERSION
 from midi2tracker.settings import ChannelAllocation
 from midi2tracker.tracker.format import TrackerFormat
 from tests.conftest import (
+    bank_document,
     instrument_file,
     lift,
     press,
@@ -158,7 +158,7 @@ def test_a_bank_manifest_reaches_the_module_the_flag_writes(piece: Path, tmp_pat
     instrument_file(tmp_path / "piano.it")
     manifest = tmp_path / "bank.json"
     manifest.write_text(
-        json.dumps({"version": MANIFEST_VERSION, "name": "One", "layers": [{"source": {"file": "piano.it"}}]}),
+        json.dumps(bank_document([{"source": {"file": "piano.it"}}], name="One")),
         encoding="utf-8",
     )
     output = tmp_path / "out.it"

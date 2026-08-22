@@ -42,6 +42,7 @@ PULSES = 96
 SAMPLE_RATE = 44100
 SAMPLE_FRAMES = 64
 SAMPLED_KEYS = range(48, 73)
+BANK_TEMPO = 125
 
 
 def canonical(tracker_format: TrackerFormat) -> TrackerTarget:
@@ -195,7 +196,7 @@ def velocity_map_file(path: Path, volumes: Sequence[int]) -> Path:
 
 def bank_document(layers: Sequence[Mapping[str, object]], *, name: str = "Bank") -> dict[str, object]:
     """The manifest describing a bank, at the version this reads."""
-    return {"version": MANIFEST_VERSION, "name": name, "layers": list(layers)}
+    return {"version": MANIFEST_VERSION, "name": name, "tempo": BANK_TEMPO, "layers": list(layers)}
 
 
 def bank_manifest(path: Path, layers: Sequence[Mapping[str, object]], *, name: str = "Bank") -> Path:
