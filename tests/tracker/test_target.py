@@ -6,6 +6,7 @@ from trackmod.core.patterns.builder import PatternBuilder
 from trackmod.core.songs.order import OrderList
 from trackmod.core.songs.playback import Playback
 from trackmod.core.songs.song import Song
+from trackmod.core.voices.voices import InstrumentVoices
 from trackmod.limits.compliance import Compliance
 
 from midi2tracker.tracker.format import TrackerFormat
@@ -22,8 +23,7 @@ def silent_song() -> Song:
         channels=2,
         patterns=(PatternBuilder(rows=SILENT_ROWS, channels=2).build(),),
         order=OrderList.sequential(1),
-        instruments=(),
-        samples=(),
+        voices=InstrumentVoices(instruments=(), samples=()),
         playback=Playback(speed=6, tempo=125),
     )
 
@@ -46,7 +46,7 @@ def test_the_two_formats_bound_a_module_differently() -> None:
     impulse, fast = canonical(TrackerFormat.IT), canonical(TrackerFormat.XM)
     assert (impulse.max_channels, impulse.max_rows, impulse.max_patterns) == (64, 200, 200)
     assert (fast.max_channels, fast.max_rows, fast.max_patterns) == (32, 256, 256)
-    assert (impulse.max_instruments, fast.max_instruments) == (255, 128)
+    assert (impulse.max_instruments, fast.max_instruments) == (99, 128)
 
 
 def test_extended_compliance_widens_what_a_format_carries(target: TrackerTarget) -> None:
@@ -55,8 +55,8 @@ def test_extended_compliance_widens_what_a_format_carries(target: TrackerTarget)
 
 
 def test_the_row_floor_is_what_the_tracker_the_format_was_designed_for_reads() -> None:
-    # Impulse Tracker itself reads patterns of at least 32 rows; the record layout holds shorter ones,
-    # which is exactly what extended compliance allows.
+    # Impulse Tracker itself reads patterns of at least 32 rows; the players descended from it read
+    # shorter ones, which is exactly what extended compliance allows.
     assert canonical(TrackerFormat.IT).min_rows == SILENT_ROWS
     assert TrackerTarget(format=TrackerFormat.IT, compliance=Compliance.EXTENDED).min_rows == 1
     assert canonical(TrackerFormat.XM).min_rows == 1

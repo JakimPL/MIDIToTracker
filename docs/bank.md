@@ -63,11 +63,13 @@ reader out of the registry in `instruments/source.py`:
 | `.xm` | A FastTracker 2 module; the instrument at the stated position |
 | `.iti` | An Impulse Tracker instrument on its own, which is position `0` |
 | `.xi` | A FastTracker 2 instrument on its own, which is position `0` |
+| `.s3m` | A Scream Tracker 3 module; the sample at the stated position, played as an instrument at the pressed key's pitch |
+| `.mod` | A ProTracker module; the sample at the stated position, played as an instrument at the pressed key's pitch |
 
 A **standalone instrument file** is what a producer ships when the instrument rather than a piece is the
 product, and a module carrying one instrument is the other way to ship exactly the same thing. Both are
 one reference — a file and a position within it — so a layer names either the same way and a manifest
-reads the same whichever it points at. `trackmod` binds all four, so the reader is chosen and nothing
+reads the same whichever it points at. `trackmod` binds all six, so the reader is chosen and nothing
 else about a bank changes.
 
 A file holding one instrument holds one, so naming a position above `0` in it is reported the way naming
@@ -75,12 +77,12 @@ a position past the end of a module is.
 
 ### What each container keeps
 
-An Impulse Tracker keymap stores a sample number per key and reserves zero for silence, so `.it` and
-`.iti` carry the stretch a producer sampled exactly as it was recorded. A FastTracker 2 keymap stores a
-sample position per key and has no spelling for silence, so `.xm` and `.xi` answer **every one of the 96
-keys the format numbers**: the verified `Piano` routes 61 keys as an `.iti` and 96 as an `.xi`, the extra
-35 sounding its first sample at the pressed key's own pitch. A bank whose unsampled keys are meant to
-stay silent belongs in an Impulse Tracker container.
+An Impulse Tracker keymap stores a sample number per key and reserves zero for silence. A FastTracker 2
+keymap stores a sample position per key, and `trackmod` writes a key meant to stay silent as a position
+past the instrument's stored samples, which reads back as silence. Every container `trackmod` writes
+therefore carries the stretch a producer sampled exactly as it was recorded. A FastTracker 2 container
+written by another tracker routes **every one of the 96 keys the format stores** to a sample, so each
+unsampled key there sounds whichever sample that tracker placed on it.
 
 What a bank reads is independent of what a conversion writes — an Impulse Tracker instrument is equally
 available to a module written as FastTracker 2, and the crossing is graded by the writer (see
@@ -235,8 +237,9 @@ numbers written into the volume column, dips and all.
 below it are numbered and hold an instrument routing no key to a sample, so a module can reserve the
 positions a tracker convention expects and still say exactly which of them the piece plays.
 
-Impulse Tracker numbers 255 instrument slots and FastTracker 2 numbers 128, so the offset plus the layer
-count is graded against the format the module is written as.
+Impulse Tracker numbers 99 instrument slots and FastTracker 2 numbers 128, and `--compliance extended`
+raises both to 255, so the offset plus the layer count is graded against the format and compliance the
+module is written as.
 
 ## What a run reports
 
@@ -277,12 +280,12 @@ $ uv run midi2tracker song.mid out.xm --format xm --instrument-file Piano/module
 cannot write this module:
   sample 0 ('Piano F1'): sample_gain is 24, outside 64..64 (structural)
   …
-  instrument 0 ('Piano'): samples_per_instrument is 61, outside 0..16 (compliance)
+  instrument 0 ('Piano'): samples_per_instrument is 61, outside 0..16 (canonical)
 ```
 
 Sixty of the `Piano`'s sixty-one samples are staged below full gain, and the count of samples one
 instrument reaches is bounded separately: 61 against the 16 FastTracker 2 itself reads, which
-`--compliance extended` lifts. The gain violations hold at either compliance, because the field the
+`--compliance extended` lifts. The gain violations hold at every compliance level, because the field the
 value would be written into is absent from the format.
 
 The fix is to produce the bank for the format it will be played in: OptiSample's `format: xm` carries the

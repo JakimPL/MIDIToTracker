@@ -18,6 +18,7 @@ from trackmod.core.samples.sample import Sample
 from trackmod.core.songs.order import OrderList
 from trackmod.core.songs.playback import Playback
 from trackmod.core.songs.song import Song
+from trackmod.core.voices.voices import InstrumentVoices
 from trackmod.limits.compliance import Compliance
 from trackmod.module.instrument import InstrumentFile
 from trackmod.spec.levels import MAX_VOLUME
@@ -171,12 +172,21 @@ def instrument_file(
         channels=2,
         patterns=(PatternBuilder(rows=32, channels=2).build(),),
         order=OrderList.sequential(1),
-        instruments=tuple(sampled_instrument(instrument_name(name, index), keys) for index in range(copies)),
-        samples=(sample,),
+        voices=InstrumentVoices(
+            instruments=tuple(sampled_instrument(instrument_name(name, index), keys) for index in range(copies)),
+            samples=(sample,),
+        ),
         playback=Playback(speed=6, tempo=125),
     )
     ITModule.from_song(song, compliance=Compliance.CANONICAL).save(path)
     return path
+
+
+def instrument_voices(song: Song) -> InstrumentVoices:
+    """The instrument table a song holds, which is what every module this converter writes addresses."""
+    voices = song.voices
+    assert isinstance(voices, InstrumentVoices), f"{song.name!r} addresses samples, so it holds no instruments"
+    return voices
 
 
 def velocity_table(volumes: Sequence[int]) -> dict[str, object]:

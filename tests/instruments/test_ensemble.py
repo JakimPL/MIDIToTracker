@@ -46,7 +46,7 @@ def layered(path: Path, *, name: str, volume: int) -> Bank:
 def test_one_bank_starts_where_the_reserve_leaves_off(tmp_path: Path) -> None:
     bank = Bank.from_instrument(instrument_file(tmp_path / "piano.it"), velocity_map=None)
     ensemble = Ensemble.of((bank,), reserved=4)
-    instruments, _ = ensemble.content
+    instruments = ensemble.table.instruments
     voicing = ensemble.voicing(FIRST_TRACK, Note.from_midi(MIDDLE_C), STRUCK)
     assert len(instruments) == 5
     assert all(assignment is None for instrument in instruments[:4] for assignment in instrument.keymap)
@@ -57,11 +57,11 @@ def test_each_bank_takes_the_slots_after_the_one_before_it(tmp_path: Path) -> No
     first = layered(tmp_path / "first.json", name="First", volume=11)
     second = layered(tmp_path / "second.json", name="Second", volume=47)
     ensemble = Ensemble.of((first, second), reserved=NO_RESERVE)
-    instruments, samples = ensemble.content
+    table = ensemble.table
 
     assert [placement.offset for placement in ensemble.placements] == [0, 2]
-    assert len(instruments) == 4 and len(samples) == 4
-    assert [instrument.samples for instrument in instruments] == [(0,), (1,), (2,), (3,)]
+    assert len(table.instruments) == 4 and len(table.samples) == 4
+    assert [instrument.samples for instrument in table.instruments] == [(0,), (1,), (2,), (3,)]
 
 
 def test_a_note_sounds_through_the_bank_its_own_track_plays(tmp_path: Path) -> None:
@@ -83,11 +83,11 @@ def test_two_tracks_playing_one_bank_share_its_slots(tmp_path: Path) -> None:
     """
     shared = layered(tmp_path / "shared.json", name="Shared", volume=11)
     ensemble = Ensemble.of((shared, shared), reserved=NO_RESERVE)
-    instruments, samples = ensemble.content
+    table = ensemble.table
 
     assert len(ensemble.placements) == 1
     assert ensemble.tracks == (0, 0)
-    assert len(instruments) == 2 and len(samples) == 2
+    assert len(table.instruments) == 2 and len(table.samples) == 2
     assert ensemble.voicing(FIRST_TRACK, Note.from_midi(MIDDLE_C), STRUCK) == ensemble.voicing(
         SECOND_TRACK, Note.from_midi(MIDDLE_C), STRUCK
     )

@@ -1,5 +1,5 @@
 format: it              # the tracker format the module is written as: it or xm
-compliance: canonical   # canonical holds to what the tracker itself reads; extended to what the file holds
+compliance: canonical   # canonical holds to what the tracker itself reads; extended to what OpenMPT reads; structural to what the file holds
 rows_per_beat: 16       # how many rows a quarter note is spread over
 channels: 32            # how many channels one track's polyphony may reach
 allocation: separated   # separated gives each track channels of its own; packed draws them from one pool

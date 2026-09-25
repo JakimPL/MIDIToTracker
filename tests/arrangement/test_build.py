@@ -165,10 +165,10 @@ def test_two_tracks_naming_one_bank_are_placed_on_the_same_slots(tmp_path: Path)
     )
 
     arrangement = arrange(path, Config())
-    instruments, samples = arrangement.ensemble.content
+    table = arrangement.ensemble.table
     assert len(arrangement.ensemble.placements) == 1
     assert arrangement.ensemble.tracks == (0, 0)
-    assert len(instruments) == 1 and len(samples) == 1
+    assert len(table.instruments) == 1 and len(table.samples) == 1
 
 
 def test_a_track_states_the_layers_its_bank_is_made_of(tmp_path: Path) -> None:
@@ -210,7 +210,7 @@ def test_a_track_naming_a_container_reads_the_bank_inside_it(tmp_path: Path) -> 
 def test_a_track_naming_nothing_plays_the_reserved_slot(tmp_path: Path) -> None:
     bassline(tmp_path / "bass.mid", pulses=96)
     path = document(tmp_path / "song.yaml", {"tracks": {"bass.mid": None}})
-    instruments, _ = arrange(path, Config()).ensemble.content
+    instruments = arrange(path, Config()).ensemble.table.instruments
     assert len(instruments) == 1
 
 
@@ -314,7 +314,7 @@ def test_the_instruments_start_on_the_slot_the_settings_name(tmp_path: Path) -> 
     source = bassline(tmp_path / "bass.mid", pulses=96)
     instrument_file(tmp_path / "piano.it", name="Piano")
     arrangement = arrange(source, Config(instrument_file=tmp_path / "piano.it", instrument=5))
-    instruments, _ = arrangement.ensemble.content
+    instruments = arrangement.ensemble.table.instruments
     assert len(instruments) == 5
     assert arrangement.ensemble.placements[0].offset == 4
 

@@ -26,6 +26,7 @@ from tests.conftest import (
     SAMPLE_FRAMES,
     bank_manifest,
     instrument_file,
+    instrument_voices,
     lift,
     pedal,
     press,
@@ -120,7 +121,7 @@ def test_the_settings_a_document_states_are_the_ones_the_module_is_written_under
     assert (converted.grid.rows_per_beat, converted.grid.speed) == (8, 3)
     assert song.playback.speed == 3
     assert max(pattern.rows for pattern in song.patterns) == 32
-    assert len(song.instruments) == 4
+    assert len(instrument_voices(song).instruments) == 4
 
 
 def test_an_explicit_speed_is_used_instead_of_the_chosen_one(piece: Path) -> None:
@@ -137,7 +138,7 @@ def test_the_chosen_speed_never_leaves_the_addressable_range(piece: Path, target
 
 def test_the_instrument_slot_reserves_the_slots_below_it(piece: Path, target: TrackerTarget) -> None:
     converted = convert(piece, settings(target, instrument=5))
-    instruments = converted.conversion.song.instruments
+    instruments = instrument_voices(converted.conversion.song).instruments
     assert len(instruments) == 5
     assert all(assignment is None for instrument in instruments[:4] for assignment in instrument.keymap)
     assert converted.writable
@@ -145,8 +146,8 @@ def test_the_instrument_slot_reserves_the_slots_below_it(piece: Path, target: Tr
 
 def test_a_conversion_naming_no_instrument_still_writes_the_slot_to_fill_in(piece: Path, target: TrackerTarget) -> None:
     song = convert(piece, settings(target)).conversion.song
-    assert len(song.instruments) == 1
-    assert song.samples[0].frames == 0
+    assert len(instrument_voices(song).instruments) == 1
+    assert song.voices.samples[0].frames == 0
 
 
 def test_an_instrument_file_is_what_the_notes_play_through(piece: Path, tmp_path: Path, target: TrackerTarget) -> None:
@@ -154,7 +155,7 @@ def test_an_instrument_file_is_what_the_notes_play_through(piece: Path, tmp_path
     converted = convert(piece, settings(target, instrument_file=source))
     song = converted.conversion.song
     assert converted.writable
-    assert len(song.samples) == 1 and song.samples[0].frames == SAMPLE_FRAMES
+    assert len(song.voices.samples) == 1 and song.voices.samples[0].frames == SAMPLE_FRAMES
 
 
 def test_the_instrument_reaches_the_written_file_verbatim(piece: Path, tmp_path: Path) -> None:
@@ -162,7 +163,7 @@ def test_the_instrument_reaches_the_written_file_verbatim(piece: Path, tmp_path:
     # have to survive the trip out to disk and back.
     source = select_unit(read_units(instrument_file(tmp_path / "piano.it")), 0, origin="piano.it")
     output = convert(piece, Config(instrument_file=tmp_path / "piano.it")).save(tmp_path / "out.it")
-    recovered = extract(ITModule.load(output).song, 0)
+    recovered = extract(instrument_voices(ITModule.load(output).song), 0)
     assert recovered.instrument.keymap == source.instrument.keymap
     assert recovered.samples == source.samples
 
@@ -215,8 +216,9 @@ def test_a_bank_manifest_puts_each_layer_on_a_slot_of_its_own(piece: Path, tmp_p
     )
     converted = convert(piece, Config(bank=manifest))
     song = converted.conversion.song
-    assert [instrument.name for instrument in song.instruments] == ["Quiet 0", "Loud 0"]
-    assert len(song.samples) == 2
+    voices = instrument_voices(song)
+    assert [instrument.name for instrument in voices.instruments] == ["Quiet 0", "Loud 0"]
+    assert len(voices.samples) == 2
     assert converted.writable
 
 

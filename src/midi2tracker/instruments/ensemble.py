@@ -3,11 +3,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
-from trackmod.core.instruments.instrument import Instrument
 from trackmod.core.instruments.transfer import combine
 from trackmod.core.instruments.unit import InstrumentUnit
 from trackmod.core.notes.pitch import Note
-from trackmod.core.samples.sample import Sample
+from trackmod.core.voices.voices import InstrumentVoices
 
 from midi2tracker.instruments.bank import Bank, Voicing
 from midi2tracker.instruments.expression import Expression
@@ -71,8 +70,8 @@ class Ensemble:
         )
 
     @property
-    def content(self) -> tuple[tuple[Instrument, ...], tuple[Sample, ...]]:
-        """The instrument and sample tables a song takes, each keymap restated against the flat one."""
+    def table(self) -> InstrumentVoices:
+        """The instrument table a song takes, each keymap restated against the one sample table behind it."""
         return combine(self.units)
 
     def voicing(self, track: int, key: Note, expression: Expression) -> Voicing | None:

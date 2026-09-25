@@ -16,6 +16,7 @@ from midi2tracker.tracker.format import TrackerFormat
 from tests.conftest import (
     bank_document,
     instrument_file,
+    instrument_voices,
     lift,
     press,
     standalone_instrument,
@@ -86,7 +87,7 @@ def test_the_flags_reach_the_file_that_is_written(piece: Path, tmp_path: Path) -
     assert main(arguments) == 0
     song = XMModule.load(output).song
     assert song.playback.speed == 4
-    assert len(song.instruments) == 2
+    assert len(instrument_voices(song).instruments) == 2
 
 
 def test_a_configuration_the_format_refuses_is_reported_at_the_parser(piece: Path, tmp_path: Path) -> None:
@@ -136,7 +137,7 @@ def test_an_instrument_file_reaches_the_module_the_flag_writes(piece: Path, tmp_
     source = instrument_file(tmp_path / "piano.it")
     output = tmp_path / "out.it"
     assert main([str(piece), str(output), "--instrument-file", str(source)]) == 0
-    assert ITModule.load(output).song.samples[0].frames > 0
+    assert ITModule.load(output).song.voices.samples[0].frames > 0
     assert "instruments   1" in capsys.readouterr().out
 
 
@@ -150,7 +151,7 @@ def test_an_instrument_stored_on_its_own_reaches_the_module_the_flag_writes(
     source = standalone_instrument(tmp_path / f"piano{suffix}", name="Grand")
     output = tmp_path / "out.it"
     assert main([str(piece), str(output), "--instrument-file", str(source)]) == 0
-    assert ITModule.load(output).song.samples[0].frames > 0
+    assert ITModule.load(output).song.voices.samples[0].frames > 0
     assert "bank          Grand" in capsys.readouterr().out
 
 
@@ -163,7 +164,7 @@ def test_a_bank_manifest_reaches_the_module_the_flag_writes(piece: Path, tmp_pat
     )
     output = tmp_path / "out.it"
     assert main([str(piece), str(output), "--bank", str(manifest)]) == 0
-    assert ITModule.load(output).song.instruments[0].name == "Sampled 0"
+    assert instrument_voices(ITModule.load(output).song).instruments[0].name == "Sampled 0"
     assert "bank          One" in capsys.readouterr().out
 
 

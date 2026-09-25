@@ -4,16 +4,12 @@ Convert a MIDI file, or an arrangement of several, into an Impulse Tracker or Fa
 
 ## Getting started
 
-The file format lives in [`trackmod`](https://github.com/JakimPL/TrackMod), taken here as a git submodule
-so a checkout pins the exact revision this project was built against. Fetch it before anything else — an
-empty `trackmod/` leaves the project uninstallable:
+The file format lives in [`trackmod`](https://pypi.org/project/trackmod/), installed from PyPI with the
+rest of the dependencies:
 
 ```
-git submodule update --init
 uv sync
 ```
-
-A fresh clone can do both in one step with `git clone --recurse-submodules`.
 
 ```
 uv run midi2tracker song.mid song.it
@@ -31,8 +27,8 @@ uv run midi2tracker song.mid song.it --instrument-file Piano/module.it
 
 The instrument is carried over as it was produced — its keymap, samples, gains and envelopes all as
 stated — and `--velocity-map` names the table it was measured with, so each velocity sounds at the volume
-it was measured at. A whole module and a standalone instrument (`.it`, `.xm`, `.iti`, `.xi`) are read the
-same way, so the flag takes whichever container a producer ships.
+it was measured at. A whole module (`.it`, `.xm`, `.s3m`, `.mod`) and a standalone instrument (`.iti`,
+`.xi`) are read the same way, so the flag takes whichever container a producer ships.
 
 `--bank` takes several instruments at once, and the notes each one answers, as a **bank**: one file
 holding the manifest, the instruments and the velocities they were measured at.
@@ -96,7 +92,7 @@ typed for one run.
 | Setting | What it decides |
 |---|---|
 | `format` | the tracker format the module is written as: `it` or `xm` |
-| `compliance` | `canonical` holds to what the tracker the format was designed for reads; `extended` to what the file layout holds |
+| `compliance` | `canonical` holds to what the tracker the format was designed for reads; `extended` to what OpenMPT and the players descended from it read; `structural` to what the file layout holds |
 | `rows_per_beat` | how many rows a quarter note is spread over — the grid's resolution |
 | `channels` | how many channels one track's polyphony may reach; an arrangement states it per track |
 | `allocation` | how the tracks of an arrangement share the channel table: `separated` or `packed` |
@@ -120,9 +116,9 @@ uv run midi2tracker song.mid out.xm --format xm --rows-per-beat 8 --channels 16 
 ## How it is put together
 
 Everything about the *file formats* lives in
-[`trackmod`](https://github.com/JakimPL/TrackMod/blob/main/docs/overview.md), which holds one
-format-agnostic song model and binds it to `.it` and `.xm`. What is here is the MIDI side and the
-translation between them.
+[`trackmod`](https://github.com/JakimPL/TrackMod/blob/main/docs/reference/model.md), which holds one
+format-agnostic song model and binds it to each tracker format; this project writes `.it` and `.xm`.
+What is here is the MIDI side and the translation between them.
 
 | Package | Owns |
 |---|---|

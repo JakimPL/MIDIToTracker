@@ -237,7 +237,7 @@ def _describe(converted: Converted, path: Path) -> str:
         f"  notes         {converted.arrangement.notes}",
         *_tracks(converted),
         f"  bank          {', '.join(bank.name for bank in converted.ensemble.banks)}",
-        f"  instruments   {len(conversion.song.instruments)}  ({len(conversion.song.samples)} sample(s))",
+        f"  instruments   {conversion.song.voices.slots}  ({len(conversion.song.voices.samples)} sample(s))",
         f"  speed         {converted.grid.speed} ticks/row  ({converted.grid.rows_per_beat} rows/beat)",
         f"  tempo         {tempos[0].beats_per_minute:.1f} BPM{changes} ->  tracker tempo {conversion.song.playback.tempo}",
     ]

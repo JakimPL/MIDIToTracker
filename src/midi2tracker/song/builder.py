@@ -75,14 +75,12 @@ def build_song(
     )
     sounding = sound(allocation, ensemble=arrangement.ensemble, target=target)
     written = build_patterns(grids, sounding, arrangement.tempos, grid, target=target)
-    instruments, samples = arrangement.ensemble.content
     song = Song(
         name=layout.name,
         channels=channels,
         patterns=written.patterns,
         order=OrderList.sequential(len(written.patterns)),
-        instruments=instruments,
-        samples=samples,
+        voices=arrangement.ensemble.table,
         playback=Playback(
             speed=grid.speed,
             tempo=playable_tempo(
